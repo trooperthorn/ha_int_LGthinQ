@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime
 import json
 import logging
+from time import monotonic
 from typing import Any
 
 from aiohttp import ClientError
@@ -19,6 +20,7 @@ from homeassistant.core import Event, HomeAssistant
 
 from .const import DEVICE_PUSH_MESSAGE, DEVICE_STATUS_MESSAGE
 from .coordinator import DeviceDataUpdateCoordinator
+from .device_inventory import device_inventory_changed
 from .diagnostic_redaction import device_ref, redact_api_data
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,12 +35,16 @@ class ThinQMQTT:
         thinq_api: ThinQApi,
         client_id: str,
         coordinators: dict[str, DeviceDataUpdateCoordinator],
+        entry_id: str,
     ) -> None:
         """Initialize a mqtt."""
         self.hass = hass
         self.thinq_api = thinq_api
         self.client_id = client_id
         self.coordinators = coordinators
+        self.entry_id = entry_id
+        self._inventory_check_pending = False
+        self._last_inventory_check = 0.0
         self.client: ThinQMQTTClient | None = None
 
     async def async_connect(self) -> bool:
@@ -114,6 +120,7 @@ class ThinQMQTT:
             )
             for coordinator in self.coordinators.values()
         )
+        tasks.append(self.hass.async_create_task(self.thinq_api.async_post_push_devices_subscribe()))
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             if (count := self._get_failed_device_count(results)) > 0:
@@ -137,6 +144,7 @@ class ThinQMQTT:
             )
             for coordinator in self.coordinators.values()
         )
+        tasks.append(self.hass.async_create_task(self.thinq_api.async_delete_push_devices_subscribe()))
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
             if (count := self._get_failed_device_count(results)) > 0:
@@ -158,6 +166,9 @@ class ThinQMQTT:
         except ValueError:
             _LOGGER.error("Failed to parse LG device message")
             return
+        if not isinstance(message, dict):
+            _LOGGER.warning("Ignoring malformed LG device message")
+            return
 
         asyncio.run_coroutine_threadsafe(
             self.async_handle_device_event(message), self.hass.loop
@@ -165,9 +176,26 @@ class ThinQMQTT:
 
     async def async_handle_device_event(self, message: dict) -> None:
         """Handle received mqtt message."""
+        push_type = message.get("pushType")
+        if push_type not in (DEVICE_STATUS_MESSAGE, DEVICE_PUSH_MESSAGE):
+            if not self._inventory_check_pending and monotonic() - self._last_inventory_check >= 60:
+                self._inventory_check_pending = True
+                self._last_inventory_check = monotonic()
+                self.hass.async_create_task(self._async_check_device_inventory())
+            return
+        if not isinstance(message.get("deviceId"), str):
+            _LOGGER.warning("Ignoring malformed LG device message")
+            return
+        report = message.get("report")
+        if push_type == DEVICE_STATUS_MESSAGE and not isinstance(report, dict):
+            _LOGGER.warning("Ignoring malformed LG status message")
+            return
+        if message.get("deviceType") == DeviceType.WASHTOWER and not report:
+            _LOGGER.warning("Ignoring LG WashTower message without a location")
+            return
         unique_id = (
-            f"{message['deviceId']}_{list(message['report'].keys())[0]}"
-            if message["deviceType"] == DeviceType.WASHTOWER
+            f"{message['deviceId']}_{next(iter(report))}"
+            if message.get("deviceType") == DeviceType.WASHTOWER
             else message["deviceId"]
         )
         coordinator = self.coordinators.get(unique_id)
@@ -180,10 +208,23 @@ class ThinQMQTT:
             device_ref(coordinator.device_id),
             redact_api_data(message),
         )
-        push_type = message.get("pushType")
-
         if push_type == DEVICE_STATUS_MESSAGE:
             coordinator.handle_update_status(message.get("report", {}))
         elif push_type == DEVICE_PUSH_MESSAGE:
             coordinator.handle_notification_message(message.get("pushCode"))
+
+    async def _async_check_device_inventory(self) -> None:
+        """Reload once when LG announces a changed registered-device list."""
+        try:
+            registered = await self.thinq_api.async_get_device_list()
+            loaded = {
+                coordinator.device_id: coordinator.api.device.alias
+                for coordinator in self.coordinators.values()
+            }
+            if device_inventory_changed(registered, loaded):
+                await self.hass.config_entries.async_reload(self.entry_id)
+        except (ThinQAPIException, ClientError, TimeoutError):
+            _LOGGER.warning("Could not refresh LG device inventory after notification")
+        finally:
+            self._inventory_check_pending = False
 
