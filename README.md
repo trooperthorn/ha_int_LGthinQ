@@ -4,7 +4,7 @@ An independent, Apache-2.0 licensed development fork of Home Assistant's built-i
 
 ## Current state
 
-This is a **source baseline and implementation plan**, not a tested release. The copied integration has been renamed to the `lg_thinq_extended` domain so Home Assistant will not replace its built-in `lg_thinq` files. No additional appliance feature has been implemented or validated on hardware yet. The integration pins the same `thinqconnect==1.0.14` dependency as the upstream snapshot. See [UPSTREAM.md](UPSTREAM.md) for source provenance and [PLAN.md](PLAN.md) for phases and acceptance gates.
+This is a **development build**, not a tested release. The copied integration has been renamed to the `lg_thinq_extended` domain so Home Assistant will not replace its built-in `lg_thinq` files. The first addition is user-initiated, redacted profile/state/energy-profile diagnostics for priority appliances. A [Windows ThinQ Connect probe](tools/README.md) collects GET responses and supports a separately confirmed control POST. No additional appliance control has been validated on hardware yet. The integration pins the same `thinqconnect==1.0.14` dependency as the upstream snapshot. See [UPSTREAM.md](UPSTREAM.md) for source provenance and [PLAN.md](PLAN.md) for phases and acceptance gates.
 
 Do not install this as a replacement for a working LG setup yet. Running both integrations against the same account may create duplicate devices and API traffic. The custom domain also means entities and automations from built-in `lg_thinq` will not migrate automatically.
 
