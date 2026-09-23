@@ -414,6 +414,18 @@ TIMER_SENSOR_DESC: dict[ThinQProperty, SensorEntityDescription] = {
         device_class=SensorDeviceClass.TIMESTAMP,
         translation_key=TimerProperty.RUNNING,
     ),
+    TimerProperty.TARGET: SensorEntityDescription(
+        key=TimerProperty.TARGET,
+        name="Target cook time",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
+    TimerProperty.TIMER: SensorEntityDescription(
+        key=TimerProperty.TIMER,
+        name="Oven timer",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
 }
 
 WASHER_SENSORS: tuple[SensorEntityDescription, ...] = (
@@ -524,6 +536,9 @@ DEVICE_TYPE_SENSOR_MAP: dict[DeviceType, tuple[SensorEntityDescription, ...]] = 
     DeviceType.OVEN: (
         RUN_STATE_SENSOR_DESC[ThinQProperty.CURRENT_STATE],
         TEMPERATURE_SENSOR_DESC[ThinQProperty.TARGET_TEMPERATURE],
+        TIMER_SENSOR_DESC[TimerProperty.REMAIN],
+        TIMER_SENSOR_DESC[TimerProperty.TARGET],
+        TIMER_SENSOR_DESC[TimerProperty.TIMER],
     ),
     DeviceType.PLANT_CULTIVATOR: (
         LIGHT_SENSOR_DESC[ThinQProperty.BRIGHTNESS],
@@ -952,5 +967,4 @@ class ThinQEnumTempSensorEntity(ThinQEntity, SensorEntity):
             self.options,
             self.native_unit_of_measurement,
         )
-
 
