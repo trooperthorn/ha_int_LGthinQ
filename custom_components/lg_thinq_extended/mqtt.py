@@ -19,6 +19,7 @@ from homeassistant.core import Event, HomeAssistant
 
 from .const import DEVICE_PUSH_MESSAGE, DEVICE_STATUS_MESSAGE
 from .coordinator import DeviceDataUpdateCoordinator
+from .diagnostic_redaction import device_ref, redact_api_data
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ class ThinQMQTT:
         try:
             message = json.loads(decoded)
         except ValueError:
-            _LOGGER.error("Failed to parse message: payload=%s", decoded)
+            _LOGGER.error("Failed to parse LG device message")
             return
 
         asyncio.run_coroutine_threadsafe(
@@ -175,10 +176,9 @@ class ThinQMQTT:
             return
 
         _LOGGER.debug(
-            "async_handle_device_event: %s, model:%s, message=%s",
-            coordinator.device_name,
-            coordinator.api.device.model_name,
-            message,
+            "async_handle_device_event: device=%s, message=%s",
+            device_ref(coordinator.device_id),
+            redact_api_data(message),
         )
         push_type = message.get("pushType")
 
@@ -186,5 +186,4 @@ class ThinQMQTT:
             coordinator.handle_update_status(message.get("report", {}))
         elif push_type == DEVICE_PUSH_MESSAGE:
             coordinator.handle_notification_message(message.get("pushCode"))
-
 
