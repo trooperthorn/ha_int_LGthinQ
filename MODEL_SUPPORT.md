@@ -1,6 +1,6 @@
 # Observed model support and validation
 
-This matrix describes the owner's four devices captured on 2026-09-23. LG reported both laundry units as `DEVICE_WASHER`; the combo label comes from observed `DRYING` behavior, not a distinct device type. A profile advertises possible commands, but no control POST has yet been tested.
+This matrix describes the owner's four devices captured on 2026-09-23. LG reported both laundry units as `DEVICE_WASHER`; the combo label comes from observed `DRYING` behavior and the owner's confirmation of the physical WM6998HBA, not a distinct API device type. A profile advertises possible commands, but each physical result still needs verification.
 
 | Function | Refrigerator | Oven | Standard washer | Washer/dryer combo |
 | --- | --- | --- | --- | --- |
@@ -10,9 +10,9 @@ This matrix describes the owner's four devices captured on 2026-09-23. LG report
 | Door/remote state | Door profile state | Remote-start state, varies by cavity state | Remote state | Remote state |
 | Operation commands | Express mode advertised writable | Bake, temperature and start observed by owner; integration POST retest pending | START/STOP/POWER_ON/POWER_OFF advertised | Same commands advertised |
 | Energy profile | HTTP 200 | HTTP 406, unavailable on tested model | HTTP 200 | HTTP 200 |
-| Hardware validation of integration command | Pending | Pending after revised guard | Pending | Pending |
+| Hardware validation of integration command | Owner reports temperature control works | Owner reports Bake and temperature commands work | Owner reports operation controls work | Owner reports remote START launched washing when Dry was selected at the dial; do not use START for a dry-only load |
 
-The integration creates entities only from each device's profile permissions. Read-only `powerSaveEnabled` and `sabbathMode` are reported as binary sensors for this refrigerator and are not presented as writable switches. Target temperature is a requested setting, not a measured interior temperature.
+The integration creates entities only from each device's profile permissions. Read-only `powerSaveEnabled` and `sabbathMode` are reported as binary sensors for this refrigerator and are not presented as writable switches. Target temperature is a requested setting, not a measured interior temperature. The owner's combo profile has writable `washerOperationMode`, but no writable `washerMode` or Dry Only course field. The LG Android app recognizes WM6998HBA but does not expose Dry controls. Forcing the local type to `DEVICE_WASHCOMBO_MAIN` would not add the missing server profile property.
 
 ## Final live control sequence
 
