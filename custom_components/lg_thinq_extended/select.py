@@ -16,7 +16,7 @@ from . import ThinqConfigEntry
 from .coordinator import DeviceDataUpdateCoordinator
 from .entity import ThinQEntity
 from .laundry_status import laundry_operation_display
-from .oven_control import oven_control_state, oven_display_state
+from .oven_control import oven_command_allowed, oven_control_state, oven_display_state
 
 SELECT_DESC: dict[ThinQProperty, SelectEntityDescription] = {
     ThinQProperty.MONITORING_ENABLED: SelectEntityDescription(
@@ -215,7 +215,7 @@ class ThinQSelectEntity(ThinQEntity, SelectEntity):
                 )
                 # An off oven without remote start enabled has no safe actions.
                 self._attr_options = [self._attr_current_option]
-                if remote_enabled:
+                if oven_command_allowed(run_state, remote_enabled):
                     self._attr_options.extend(
                         option for option in command_options
                         if option != self._attr_current_option
