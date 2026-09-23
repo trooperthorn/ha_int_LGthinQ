@@ -1,6 +1,6 @@
 # Phased implementation plan
 
-Status: scoped on 2026-09-23. No appliance control changes are claimed as implemented.
+Status: first Phase 1 diagnostic and Windows probe work started on 2026-09-23. No appliance control changes are claimed as implemented.
 
 ## Principles
 
