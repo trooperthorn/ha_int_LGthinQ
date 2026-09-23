@@ -489,6 +489,18 @@
       }
     },
     "sensor": {
+      "error_status": {
+        "name": "Error status"
+      },
+      "error_status_for_location": {
+        "name": "{location} error status"
+      },
+      "notification_status": {
+        "name": "Notification status"
+      },
+      "notification_status_for_location": {
+        "name": "{location} notification status"
+      },
       "absolute_to_start": {
         "name": "[%key:component::lg_thinq_extended::entity::number::relative_hour_to_start::name%]"
       },
