@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from . import ThinqConfigEntry
 
 from .const import DOMAIN, REVERSE_DEVICE_UNIT_TO_HA
+from .diagnostic_redaction import device_ref
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass,
             _LOGGER,
             config_entry=config_entry,
-            name=f"{DOMAIN}_{ha_bridge.device.device_id}",
+            name=f"{DOMAIN}_{device_ref(ha_bridge.device.device_id)}",
         )
 
         self.data = ha_bridge.update_status(None)
@@ -132,5 +133,4 @@ async def async_setup_device_coordinator(
         coordinator.api.device.model_name,
     )
     return coordinator
-
 
