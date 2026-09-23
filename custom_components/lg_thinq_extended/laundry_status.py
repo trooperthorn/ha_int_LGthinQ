@@ -28,3 +28,11 @@ def laundry_operation_display(data: Mapping[str, Any], location: str | None) -> 
         return "error"
     return "running"
 
+
+def laundry_remote_ready(data: Mapping[str, Any], location: str | None) -> bool:
+    """Require an explicit remote-enable state before starting laundry."""
+    if not location:
+        return False
+    property_state = data.get(f"{location}_{ThinQProperty.REMOTE_CONTROL_ENABLED}")
+    return getattr(property_state, "value", None) is True
+
