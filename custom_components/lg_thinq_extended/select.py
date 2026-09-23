@@ -252,8 +252,11 @@ class ThinQSelectEntity(ThinQEntity, SelectEntity):
             if option not in (self.data.options or []):
                 raise ServiceValidationError("Oven display state is not a command")
             await self.async_require_oven_remote_ready()
-        elif self._is_laundry_command and option not in (self.data.options or []):
-            raise ServiceValidationError("Laundry display state is not a command")
+        elif self._is_laundry_command:
+            if option not in (self.data.options or []):
+                raise ServiceValidationError("Laundry display state is not a command")
+            if option.upper() == "START":
+                await self.async_require_laundry_remote_ready()
         _LOGGER.debug(
             "[%s:%s] async_select_option: %s",
             self.coordinator.device_name,
