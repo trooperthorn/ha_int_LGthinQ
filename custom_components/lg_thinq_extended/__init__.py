@@ -141,7 +141,9 @@ async def async_setup_mqtt(
     hass: HomeAssistant, entry: ThinqConfigEntry, thinq_api: ThinQGuardedApi, client_id: str
 ) -> None:
     """Set up MQTT connection."""
-    mqtt_client = ThinQMQTT(hass, thinq_api, client_id, entry.runtime_data.coordinators)
+    mqtt_client = ThinQMQTT(
+        hass, thinq_api, client_id, entry.runtime_data.coordinators, entry.entry_id
+    )
     entry.runtime_data.mqtt_client = mqtt_client
 
     # Try to connect.

@@ -13,7 +13,10 @@ class LaundryStatusTests(unittest.TestCase):
         sdk = types.ModuleType("thinqconnect")
         devices = types.ModuleType("thinqconnect.devices")
         const = types.ModuleType("thinqconnect.devices.const")
-        const.Property = types.SimpleNamespace(CURRENT_STATE="current_state")
+        const.Property = types.SimpleNamespace(
+            CURRENT_STATE="current_state",
+            REMOTE_CONTROL_ENABLED="remote_control_enabled",
+        )
         cls.previous = {name: sys.modules.get(name) for name in (
             "thinqconnect", "thinqconnect.devices", "thinqconnect.devices.const"
         )}
@@ -48,6 +51,14 @@ class LaundryStatusTests(unittest.TestCase):
                 data = {"washer_current_state": types.SimpleNamespace(value=raw)}
                 self.assertEqual(self.module.laundry_operation_display(data, "washer"), expected)
         self.assertIsNone(self.module.laundry_operation_display({}, "washer"))
+
+    def test_start_requires_explicit_remote_enabled_state(self):
+        for value, expected in ((True, True), (False, False), (None, False)):
+            with self.subTest(value=value):
+                data = {"washer_remote_control_enabled": types.SimpleNamespace(value=value)}
+                self.assertIs(self.module.laundry_remote_ready(data, "washer"), expected)
+        self.assertFalse(self.module.laundry_remote_ready({}, "washer"))
+        self.assertFalse(self.module.laundry_remote_ready({}, None))
 
 
 if __name__ == "__main__":
