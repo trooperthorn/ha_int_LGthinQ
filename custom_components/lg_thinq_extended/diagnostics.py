@@ -3,13 +3,14 @@
 from typing import Any
 from aiohttp import ClientError
 
-from thinqconnect import ThinQApi, ThinQAPIException
+from thinqconnect import ThinQAPIException
 
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_COUNTRY
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import ThinqConfigEntry
+from .api import ThinQGuardedApi
 from .const import CONF_CONNECT_CLIENT_ID
 from .diagnostic_redaction import device_ref, redact_api_data
 
@@ -37,7 +38,7 @@ async def async_get_config_entry_diagnostics(
     hass: HomeAssistant, entry: ThinqConfigEntry
 ) -> dict[str, Any]:
     """Fetch current profiles and states for priority appliance families."""
-    api = ThinQApi(
+    api = ThinQGuardedApi(
         session=async_get_clientsession(hass),
         access_token=entry.data[CONF_ACCESS_TOKEN],
         country_code=entry.data[CONF_COUNTRY],
