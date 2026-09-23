@@ -12,6 +12,7 @@ param(
     [ValidatePattern('^[A-Z]{2}$')][string]$Country = 'US',
     [ValidateSet('America', 'Europe', 'Asia')][string]$Region = 'America',
     [string]$DeviceId,
+    [ValidatePattern('^DEVICE_[A-Z0-9_]+$')][string]$DeviceTypeFilter,
     [int]$ControlDeviceNumber,
     [ValidateRange(1, 50)][int]$MaxDevices = 8,
     [string]$OutputDirectory,
@@ -38,6 +39,7 @@ $script:Pat = $null
 $script:Sequence = 0
 $script:Results = New-Object System.Collections.Generic.List[object]
 $script:DeviceRefs = @{}
+$script:MatchingDeviceCount = 0
 $script:SensitiveKeys = '^(?i:authorization|access.?token|refresh.?token|token|secret|password|csr|certificate|private.?key|public.?key|mac.?address|mac|ssid|alias|nick.?name|email|user.?number|user.?list|account.?id|serial(?:no|number)?|ip.?address|client.?id|service.?id)$'
 
 function Get-ShortHash {
@@ -127,6 +129,8 @@ function Save-DeviceTypeInventory {
         $model = if ($info -and $info.PSObject.Properties['modelName']) { Protect-Value ([string]$info.modelName) 'modelName' } else { $null }
         if (-not $counts.Contains($type)) { $counts[$type] = 0 }
         $counts[$type]++
+        if ($DeviceTypeFilter -and $type -cne $DeviceTypeFilter) { continue }
+        $script:MatchingDeviceCount++
         $rawId = [string]$entry.deviceId
         $script:DeviceRefs[$rawId] = Protect-Value $rawId 'deviceId'
         $item = [ordered]@{
@@ -145,6 +149,8 @@ function Save-DeviceTypeInventory {
     })
     $inventory = [ordered]@{
         source = 'GET /devices (types registered on this LG account)'
+        requested_device_type = if ($DeviceTypeFilter) { $DeviceTypeFilter } else { $null }
+        matching_device_count = $script:MatchingDeviceCount
         observed_device_types = $typeList
         devices = $items.ToArray()
     }
@@ -310,21 +316,30 @@ try {
     if ($devices.Status -ne 200) {
         throw ('GET /devices failed with HTTP {0}; inspect the redacted log.' -f $devices.Status)
     }
-    $null = Invoke-ThinQ GET 'push' 'push_subscriptions'
-    $null = Invoke-ThinQ GET 'push/devices' 'device_change_subscriptions'
-    $null = Invoke-ThinQ GET 'event' 'event_subscriptions'
+    if (-not $DeviceTypeFilter) {
+        $null = Invoke-ThinQ GET 'push' 'push_subscriptions'
+        $null = Invoke-ThinQ GET 'push/devices' 'device_change_subscriptions'
+        $null = Invoke-ThinQ GET 'event' 'event_subscriptions'
+    }
 
     $entries = @($devices.Data.response)
     Save-DeviceTypeInventory $entries
+    if ($DeviceTypeFilter) {
+        Write-Host ('Exact type {0}: {1} match(es)' -f $DeviceTypeFilter, $script:MatchingDeviceCount)
+    }
     $priorityEntries = @($entries | Where-Object {
         $_ -and $_.deviceId -and $_.deviceInfo -and
-        (Test-PriorityDeviceType ([string]$_.deviceInfo.deviceType))
+        (Test-PriorityDeviceType ([string]$_.deviceInfo.deviceType)) -and
+        (-not $DeviceTypeFilter -or [string]$_.deviceInfo.deviceType -ceq $DeviceTypeFilter)
     })
     if ($ExecuteControl -and -not $DeviceId) {
         if ($ControlDeviceNumber -gt $entries.Count) { throw 'ControlDeviceNumber is not in the displayed device list.' }
         $selected = $entries[$ControlDeviceNumber - 1]
         if (-not $selected -or -not (Test-PriorityDeviceType ([string]$selected.deviceInfo.deviceType))) {
             throw 'Selected device is outside the Refrigerator/Oven/Washer/Dryer probe scope.'
+        }
+        if ($DeviceTypeFilter -and [string]$selected.deviceInfo.deviceType -cne $DeviceTypeFilter) {
+            throw 'Selected device does not match the requested device type.'
         }
         $DeviceId = [string]$selected.deviceId
     }
@@ -368,6 +383,8 @@ finally {
         generated_utc = [DateTime]::UtcNow.ToString('o')
         country = $Country
         region = $Region
+        requested_device_type = if ($DeviceTypeFilter) { $DeviceTypeFilter } else { $null }
+        matching_device_count = $script:MatchingDeviceCount
         calls = $script:Results.ToArray()
         note = 'Review all files before sharing. No PAT is intentionally stored.'
     }
