@@ -1,6 +1,6 @@
 # Phased implementation plan
 
-Status: first Phase 1 diagnostic and Windows probe work started on 2026-09-23. No appliance control changes are claimed as implemented.
+Status: Phases 0–5 have implementation and documentation work in progress. The owner confirmed the manifest fix permits setup. Local tests pass, but the final live command and entity behavior checks remain pending.
 
 Phase 1 now includes a compact per-device capability summary in user-initiated diagnostics, built from the existing profile/state/energy GETs without additional API requests. The summary lists property paths, read/write permissions, constraints, observed state paths, notification codes, and energy availability. This change has local tests but awaits a Home Assistant runtime retest.
 
