@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import logging
 
 from aiohttp import ClientError
-from thinqconnect import ThinQApi, ThinQAPIException
+from thinqconnect import ThinQAPIException
 from thinqconnect.integration import async_get_ha_bridge_list
 
 from homeassistant.config_entries import ConfigEntry
@@ -16,12 +16,13 @@ from homeassistant.const import (
     Platform,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 
 from .const import CONF_CONNECT_CLIENT_ID, DOMAIN, MQTT_SUBSCRIPTION_INTERVAL
+from .api import AUTH_ERROR_CODES, ThinQGuardedApi
 from .coordinator import DeviceDataUpdateCoordinator, async_setup_device_coordinator
 from .mqtt import ThinQMQTT
 
@@ -61,7 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ThinqConfigEntry) -> boo
     client_id = entry.data[CONF_CONNECT_CLIENT_ID]
     country_code = entry.data[CONF_COUNTRY]
 
-    thinq_api = ThinQApi(
+    thinq_api = ThinQGuardedApi(
         session=async_get_clientsession(hass),
         access_token=access_token,
         country_code=country_code,
@@ -86,13 +87,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ThinqConfigEntry) -> boo
 async def async_setup_coordinators(
     hass: HomeAssistant,
     entry: ThinqConfigEntry,
-    thinq_api: ThinQApi,
+    thinq_api: ThinQGuardedApi,
 ) -> None:
     """Set up coordinators and register devices."""
     # Get a list of ha bridge.
     try:
         bridge_list = await async_get_ha_bridge_list(thinq_api)
     except ThinQAPIException as exc:
+        if exc.code in AUTH_ERROR_CODES:
+            raise ConfigEntryAuthFailed("LG ThinQ credentials rejected") from exc
         raise ConfigEntryNotReady(exc.message) from exc
     except (ClientError, TimeoutError) as exc:
         raise ConfigEntryNotReady(
@@ -135,7 +138,7 @@ def async_cleanup_device_registry(hass: HomeAssistant, entry: ThinqConfigEntry) 
 
 
 async def async_setup_mqtt(
-    hass: HomeAssistant, entry: ThinqConfigEntry, thinq_api: ThinQApi, client_id: str
+    hass: HomeAssistant, entry: ThinqConfigEntry, thinq_api: ThinQGuardedApi, client_id: str
 ) -> None:
     """Set up MQTT connection."""
     mqtt_client = ThinQMQTT(hass, thinq_api, client_id, entry.runtime_data.coordinators)
@@ -184,5 +187,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ThinqConfigEntry) -> bo
         await entry.runtime_data.mqtt_client.async_disconnect()
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-
 
