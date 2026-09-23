@@ -27,5 +27,5 @@ LG's PAT documentation limits the token to personal, non-commercial use. Develop
 
 ## Development
 
-The source is under `custom_components/lg_thinq_extended`. The copied upstream code is preserved as a baseline, with domain and manifest metadata adjusted. [Initial runtime validation](RUNTIME_VALIDATION.md) records successful setup and reload on one owner's Home Assistant instance. Phased changes should retain a testable mapping from an LG profile property to a library method, entity, and device-specific acceptance test. LG's SDK DEBUG logs can include device IDs and certificate response data; review and redact them before sharing.
+The source is under `custom_components/lg_thinq_extended`. The copied upstream code is preserved as a baseline, with domain and manifest metadata adjusted. [Initial runtime validation](RUNTIME_VALIDATION.md) records successful setup and reload on one owner's Home Assistant instance. User-initiated diagnostics now include a concise capability summary without extra API calls; that newer change needs a runtime retest. LG's SDK DEBUG logs can include device IDs and certificate response data; review and redact them before sharing.
 
