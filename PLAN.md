@@ -2,6 +2,8 @@
 
 Status: first Phase 1 diagnostic and Windows probe work started on 2026-09-23. No appliance control changes are claimed as implemented.
 
+Install blocker found on the owner's Home Assistant: `thinqconnect==1.0.14` requires `cryptography>=50.0.1`, conflicting with Home Assistant's `cryptography==48.0.1` pin. The fork now pins SDK 1.0.13 pending a Home Assistant runtime retest. SDK 1.0.13 has the device, profile, state, energy, and authentication methods used by this fork. This is a dependency compatibility change, not proof that setup succeeds end to end.
+
 See [OBSERVED_RUNS.md](OBSERVED_RUNS.md) for the four captured appliance conditions and the invalid-PAT run. The invalid-key response drove the authentication guard; the changing washer, combo, and oven states define initial acceptance fixtures.
 
 ## First owner-account probe (2026-09-23)
@@ -33,7 +35,7 @@ These findings are from one owner's redacted diagnostic run, not a general LG mo
 
 ## Phase 1 — Official API coverage and capability inventory
 
-- Inventory the 1.0.14 SDK calls against every documented route (see `API_COVERAGE.md`). Record which are used directly, by the SDK bridge, or unused.
+- Inventory the pinned 1.0.13 SDK calls against every documented route (see `API_COVERAGE.md`). Record which are used directly, by the SDK bridge, or unused.
 - Add a redacted diagnostic report containing device type, profile property paths, read/write flags, enum/range constraints, notification codes, state path presence, and energy profile availability. No PAT or MQTT certificate output.
 - Check event subscription expiry and renewal against current LG documentation. The SDK source and displayed LG documentation appear to disagree on the expiry value; resolve with a safe, read-only source audit before changing subscription timing.
 - Expose a read-only capability view for unsupported properties, rather than silently claiming support.
