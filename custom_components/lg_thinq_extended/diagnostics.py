@@ -11,6 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import ThinqConfigEntry
 from .api import ThinQGuardedApi
+from .capability_inventory import summarize_capabilities
 from .const import CONF_CONNECT_CLIENT_ID
 from .diagnostic_redaction import device_ref, redact_api_data
 
@@ -70,16 +71,18 @@ async def async_get_config_entry_diagnostics(
         if len(devices) >= _MAX_DEVICES:
             continue
         seen.add(raw_id)
+        profile = await _capture(api.async_get_device_profile(raw_id))
+        state = await _capture(api.async_get_device_status(raw_id))
+        energy_profile = await _capture(api.async_get_device_energy_profile(raw_id))
         devices.append(
             {
                 "device_ref": device_ref(raw_id),
                 "device_type": device_type,
                 "model_name": redact_api_data(info.get("modelName"), "modelName"),
-                "profile": await _capture(api.async_get_device_profile(raw_id)),
-                "state": await _capture(api.async_get_device_status(raw_id)),
-                "energy_profile": await _capture(
-                    api.async_get_device_energy_profile(raw_id)
-                ),
+                "profile": profile,
+                "state": state,
+                "energy_profile": energy_profile,
+                "capabilities": summarize_capabilities(profile, state, energy_profile),
             }
         )
 
