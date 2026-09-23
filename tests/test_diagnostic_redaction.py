@@ -47,6 +47,20 @@ class RedactionTests(unittest.TestCase):
             "[REDACTED STRING]",
         )
 
+    def test_mqtt_status_log_keeps_state_without_account_ids(self) -> None:
+        message = {
+            "deviceId": "raw-device",
+            "serviceId": "raw-service",
+            "userList": ["raw-user"],
+            "pushType": "DEVICE_STATUS",
+            "report": [{"runState": {"currentState": "DRYING"}}],
+        }
+        safe = MODULE.redact_api_data(message)
+        self.assertEqual(safe["deviceId"], MODULE.device_ref("raw-device"))
+        self.assertEqual(safe["serviceId"], "[REDACTED]")
+        self.assertEqual(safe["userList"], "[REDACTED]")
+        self.assertEqual(safe["report"][0]["runState"]["currentState"], "DRYING")
+
 
 if __name__ == "__main__":
     unittest.main()
