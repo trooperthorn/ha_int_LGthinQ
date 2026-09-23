@@ -17,7 +17,6 @@ from homeassistant.components.number import (
 from homeassistant.components.script import scripts_with_entity
 from homeassistant.const import UnitOfRatio, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.issue_registry import (
@@ -29,7 +28,6 @@ from homeassistant.helpers.issue_registry import (
 from . import ThinqConfigEntry
 from .const import DOMAIN
 from .entity import ThinQEntity
-from .value_validation import value_in_profile_range
 
 NUMBER_DESC: dict[ThinQProperty, NumberEntityDescription] = {
     ThinQProperty.FAN_SPEED: NumberEntityDescription(
@@ -278,16 +276,6 @@ class ThinQNumberEntity(ThinQEntity, NumberEntity):
         ):
             self._attr_native_step = step
 
-        # LG reports zero for an idle oven although its writable target range
-        # starts above zero. Zero is not a meaningful oven setpoint.
-        if (
-            self.coordinator.api.device.device_type == DeviceType.OVEN
-            and self.entity_description.key == ThinQProperty.TARGET_TEMPERATURE
-            and not value_in_profile_range(
-                self.data.value, self.data.min, self.data.max
-            )
-        ):
-            self._attr_native_value = None
 
         _LOGGER.debug(
             "[%s:%s] update status: %s -> %s, unit:%s, min:%s, max:%s, step:%s",
@@ -304,8 +292,6 @@ class ThinQNumberEntity(ThinQEntity, NumberEntity):
     @override
     async def async_set_native_value(self, value: float) -> None:
         """Change to new number value."""
-        if not value_in_profile_range(value, self.data.min, self.data.max):
-            raise ServiceValidationError("Value is outside the LG device profile range")
         if self.step.is_integer():
             value = int(value)
         _LOGGER.debug(
