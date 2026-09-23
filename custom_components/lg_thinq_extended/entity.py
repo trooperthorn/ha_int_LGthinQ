@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import COMPANY, DEVICE_UNIT_TO_HA, DOMAIN
 from .coordinator import DeviceDataUpdateCoordinator
+from .oven_control import oven_control_state
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -97,6 +98,23 @@ class ThinQEntity(CoordinatorEntity[DeviceDataUpdateCoordinator]):
         await super().async_added_to_hass()
         self._handle_coordinator_update()
 
+    async def async_require_oven_remote_ready(self) -> None:
+        """Refresh oven state and reject controls after remote start is disabled."""
+        try:
+            fresh = await self.coordinator.api.fetch_data()
+        except (ThinQAPIException, ClientError, TimeoutError) as exc:
+            raise ServiceValidationError(
+                "Could not verify oven remote-start status"
+            ) from exc
+        if not isinstance(fresh, dict):
+            raise ServiceValidationError("Could not verify oven remote-start status")
+        self.coordinator.async_set_updated_data(fresh)
+        _, remote_enabled = oven_control_state(fresh, self.location)
+        if not remote_enabled:
+            raise ServiceValidationError(
+                "Oven remote start is disabled; enable it at the appliance"
+            )
+
     async def async_call_api(
         self,
         target: Coroutine[Any, Any, Any],
@@ -120,5 +138,4 @@ class ThinQEntity(CoordinatorEntity[DeviceDataUpdateCoordinator]):
                 translation_domain=DOMAIN,
                 translation_key="connection_error",
             ) from exc
-
 
