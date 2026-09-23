@@ -21,6 +21,16 @@ Use `Europe` or `Asia` for the corresponding LG regional API endpoint. The tool 
 
 The detailed probe includes refrigerator, oven, washer, dryer, tower, and combo type names, including previously unseen names containing WASH, DRY, or COMBO. It excludes `DEVICE_DISH_WASHER`. Both of your washers will appear in the complete inventory even if LG assigns the combo a different type. `group_ref` helps identify linked tower parts without exposing the raw group ID. The probe collects detailed responses for up to eight priority devices by default; use `-MaxDevices 50` to include more or `-DeviceId` to focus on one known device. Each output filename and device reference uses a shortened hash. A run summary is saved as `00_summary.json`.
 
+## Exact WashCombo device-type check
+
+Run `tools\Find-WashCombo.ps1` from Windows PowerShell. It filters the reported type exactly to `DEVICE_WASHCOMBO_MAIN` and saves profile/state/energy-profile GETs only for matching devices. It never sends a control POST.
+
+```powershell
+powershell.exe -NoProfile -File .\tools\Find-WashCombo.ps1 -Country US -Region America
+```
+
+The output folder is printed at the end and defaults to a timestamped `tools\diagnostics\washcombo-type-check-*` directory. `00_device_type_inventory.json` records the requested type, match count, and counts for all observed types; its device detail list contains only matches. The initial `GET /devices` response file still contains the redacted complete account device list because LG returns all devices in that call. If the match count is zero, the script does not query any device profile or state. This is meaningful: the owner's earlier ThinQ Connect inventory labeled both physical laundry appliances `DEVICE_WASHER`, even though one is a washer/dryer combo. LG's retail WM6998HBA designation does not itself determine the API type.
+
 ## Optional control POST
 
 Only perform this with a payload you have checked against **your device's** LG profile and current state. A control can start an appliance, including an oven. The script will never send a POST in its default read-only mode.
