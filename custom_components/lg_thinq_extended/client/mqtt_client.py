@@ -61,6 +61,8 @@ class ThinQMQTTClient:
     def __await__(self):
         async def ready():
             route = await self._api.async_get_route()
+            if not isinstance(route, dict) or not isinstance(route.get("mqttServer"), str):
+                raise ValueError("LG returned no MQTT route")
             endpoint = urlparse(route["mqttServer"])
             if endpoint.scheme != "mqtts" or not endpoint.hostname:
                 raise ValueError("LG returned an invalid TLS MQTT route")
@@ -77,9 +79,13 @@ class ThinQMQTTClient:
         self._registered = True
         key, csr = await asyncio.to_thread(generate_credentials)
         response = await self._api.async_post_client_certificate({"service-code": "SVC202", "csr": csr})
+        if not isinstance(response, dict):
+            raise ValueError("LG returned no MQTT certificate")
         result = response.get("result", response)
+        if not isinstance(result, dict) or not isinstance(result.get("certificatePem"), str):
+            raise ValueError("LG returned no MQTT certificate")
         certificate = result["certificatePem"].encode("ascii")
-        topics = result["subscriptions"]
+        topics = result.get("subscriptions")
         if not isinstance(topics, list) or not topics or not all(isinstance(t, str) and t for t in topics):
             raise ValueError("LG returned no MQTT subscription topics")
         self._topics = topics

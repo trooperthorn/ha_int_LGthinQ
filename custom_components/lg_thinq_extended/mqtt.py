@@ -89,7 +89,10 @@ class ThinQMQTT:
         """Update event subscribes."""
         _LOGGER.debug("async_refresh_subscribe: now=%s", now)
         if self.client is not None:
-            await self.client.async_refresh_certificate()
+            try:
+                await self.client.async_refresh_certificate()
+            except (ThinQAPIException, ClientError, TimeoutError, OSError, ValueError):
+                _LOGGER.warning("Could not renew LG MQTT certificate; retry at next renewal")
 
         tasks = [
             self.hass.async_create_task(

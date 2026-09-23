@@ -64,3 +64,20 @@ class MQTTTests(unittest.IsolatedAsyncioTestCase):
         client._stop_connection.assert_awaited_once()
         client.async_prepare_mqtt.assert_awaited_once()
         client.async_connect_mqtt.assert_awaited_once()
+
+    async def test_malformed_certificate_cleanup(self):
+        api=type('API',(),{})()
+        api.async_post_client_register=AsyncMock()
+        api.async_post_client_certificate=AsyncMock(return_value={'result': {}})
+        api.async_delete_client_register=AsyncMock()
+        client=ThinQMQTTClient(api,'test',lambda **kw:None)
+        with self.assertRaisesRegex(ValueError,'no MQTT certificate'):
+            await client.async_prepare_mqtt()
+        await client.async_disconnect()
+        api.async_delete_client_register.assert_awaited_once()
+
+    async def test_missing_route_is_rejected(self):
+        api=type('API',(),{})()
+        api.async_get_route=AsyncMock(return_value={})
+        with self.assertRaisesRegex(ValueError,'no MQTT route'):
+            await ThinQMQTTClient(api,'test',lambda **kw:None)
