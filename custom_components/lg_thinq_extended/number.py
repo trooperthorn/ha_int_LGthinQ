@@ -28,6 +28,7 @@ from homeassistant.helpers.issue_registry import (
 from . import ThinqConfigEntry
 from .const import DOMAIN
 from .entity import ThinQEntity
+from .oven_control import oven_control_state
 
 NUMBER_DESC: dict[ThinQProperty, NumberEntityDescription] = {
     ThinQProperty.FAN_SPEED: NumberEntityDescription(
@@ -244,6 +245,19 @@ class ThinQNumberEntity(ThinQEntity, NumberEntity):
 
     _attr_mode = NumberMode.BOX
 
+    @property
+    @override
+    def available(self) -> bool:
+        """Hide oven temperature control when remote start is not enabled."""
+        if (
+            self.coordinator.api.device.device_type == DeviceType.OVEN
+            and self.entity_description.key == ThinQProperty.TARGET_TEMPERATURE
+        ):
+            return super().available and oven_control_state(
+                self.coordinator.data, self.location
+            )[1]
+        return super().available
+
     @override
     def _update_status(self) -> None:
         """Update status itself."""
@@ -292,6 +306,11 @@ class ThinQNumberEntity(ThinQEntity, NumberEntity):
     @override
     async def async_set_native_value(self, value: float) -> None:
         """Change to new number value."""
+        if (
+            self.coordinator.api.device.device_type == DeviceType.OVEN
+            and self.entity_description.key == ThinQProperty.TARGET_TEMPERATURE
+        ):
+            await self.async_require_oven_remote_ready()
         if self.step.is_integer():
             value = int(value)
         _LOGGER.debug(
