@@ -2,6 +2,8 @@
 
 Status: first Phase 1 diagnostic and Windows probe work started on 2026-09-23. No appliance control changes are claimed as implemented.
 
+See [OBSERVED_RUNS.md](OBSERVED_RUNS.md) for the four captured appliance conditions and the invalid-PAT run. The invalid-key response drove the authentication guard; the changing washer, combo, and oven states define initial acceptance fixtures.
+
 ## First owner-account probe (2026-09-23)
 
 - `GET /devices` returned four devices: two `DEVICE_WASHER`, one `DEVICE_REFRIGERATOR`, and one `DEVICE_OVEN`. LG does not distinguish the washer/dryer combo by device type on this account. The returned `modelName` strings are opaque identifiers here, not confirmed retail model numbers. The two washers must be evaluated by their individual profiles and observed behavior.
