@@ -2,6 +2,16 @@
 
 Status: first Phase 1 diagnostic and Windows probe work started on 2026-09-23. No appliance control changes are claimed as implemented.
 
+## First owner-account probe (2026-09-23)
+
+- `GET /devices` returned four devices: two `DEVICE_WASHER`, one `DEVICE_REFRIGERATOR`, and one `DEVICE_OVEN`. LG does not distinguish the washer/dryer combo by device type on this account. The two washers must be evaluated by profile and model-specific behavior.
+- Both washer profiles advertise writable `washerOperationMode` (`START`, `STOP`, `POWER_OFF`, `POWER_ON`) and writable `relativeHourToStart`; neither snapshot had remote control enabled. One washer profile also advertises `DRYING_IS_COMPLETE`. That notification is a combo clue, not by itself proof of the physical appliance type. No control POST was tested.
+- The refrigerator profile advertises writable fridge/freezer target temperatures and `expressMode`. Its `powerSaveEnabled` and `sabbathMode` are read-only for this model. The state includes water-filter replacement status.
+- The oven profile advertises writable oven operation, cook mode, target temperature, and timer fields. Its energy-profile GET returned HTTP 406 with no response body; treat energy as unavailable for this model until further evidence.
+- The other three energy-profile GETs returned HTTP 200 with `energyUsage` in the response. Daily usage was not queried. All device profile and state GETs returned HTTP 200.
+
+These findings are from one owner's redacted diagnostic run, not a general LG model-support guarantee. Keep the original diagnostic files local and out of Git.
+
 ## Principles
 
 1. Use only LG ThinQ Connect PAT endpoints for this fork. A legacy WideQ property is a lead to investigate, not proof that Connect exposes it.
