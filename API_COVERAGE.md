@@ -1,8 +1,8 @@
 # Official API call coverage inventory
 
-LG reference: [ThinQ API](https://smartsolution.developer.lge.com/en/apiManage/thinq_connect). SDK reference: [`thinq_api.py`](https://github.com/thinq-connect/pythinqconnect/blob/1.0.14/thinqconnect/thinq_api.py). The baseline integration pins `thinqconnect==1.0.14`. “SDK method” means a callable exists, not that this fork offers a user-facing Home Assistant action or that every model supports it.
+LG reference: [ThinQ API](https://smartsolution.developer.lge.com/en/apiManage/thinq_connect). SDK reference: [`thinq_api.py`](https://github.com/thinq-connect/pythinqconnect/blob/1.0.13/thinqconnect/thinq_api.py). The fork pins `thinqconnect==1.0.13` because the owner's Home Assistant environment pins `cryptography==48.0.1`, while SDK 1.0.14 requires `cryptography>=50.0.1`. “SDK method” means a callable exists, not that this fork offers a user-facing Home Assistant action or that every model supports it.
 
-| Official call family | SDK method in 1.0.14 | Baseline use and phased disposition |
+| Official call family | SDK method in 1.0.13 | Baseline use and phased disposition |
 |---|---|---|
 | `GET /route` | `async_get_route` | SDK supports discovery; audit where bridge uses it in Phase 1. |
 | `GET /devices` | `async_get_device_list` | Device discovery; retain. |
