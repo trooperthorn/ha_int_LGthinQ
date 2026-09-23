@@ -32,6 +32,16 @@ from homeassistant.util import dt as dt_util
 from . import ThinqConfigEntry
 from .coordinator import DeviceDataUpdateCoordinator
 from .entity import ThinQEntity
+from .event import DEVICE_TYPE_EVENT_MAP
+
+EVENT_STATUS_DESC = {
+    ThinQPropertyEx.ERROR: SensorEntityDescription(
+        key="error_status", translation_key="error_status"
+    ),
+    ThinQPropertyEx.NOTIFICATION: SensorEntityDescription(
+        key="notification_status", translation_key="notification_status"
+    ),
+}
 
 AIR_QUALITY_SENSOR_DESC: dict[ThinQProperty, SensorEntityDescription] = {
     ThinQProperty.PM1: SensorEntityDescription(
@@ -414,6 +424,18 @@ TIMER_SENSOR_DESC: dict[ThinQProperty, SensorEntityDescription] = {
         device_class=SensorDeviceClass.TIMESTAMP,
         translation_key=TimerProperty.RUNNING,
     ),
+    TimerProperty.TARGET: SensorEntityDescription(
+        key=TimerProperty.TARGET,
+        name="Target cook time",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
+    TimerProperty.TIMER: SensorEntityDescription(
+        key=TimerProperty.TIMER,
+        name="Oven timer",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.MINUTES,
+    ),
 }
 
 WASHER_SENSORS: tuple[SensorEntityDescription, ...] = (
@@ -524,6 +546,9 @@ DEVICE_TYPE_SENSOR_MAP: dict[DeviceType, tuple[SensorEntityDescription, ...]] = 
     DeviceType.OVEN: (
         RUN_STATE_SENSOR_DESC[ThinQProperty.CURRENT_STATE],
         TEMPERATURE_SENSOR_DESC[ThinQProperty.TARGET_TEMPERATURE],
+        TIMER_SENSOR_DESC[TimerProperty.REMAIN],
+        TIMER_SENSOR_DESC[TimerProperty.TARGET],
+        TIMER_SENSOR_DESC[TimerProperty.TIMER],
     ),
     DeviceType.PLANT_CULTIVATOR: (
         LIGHT_SENSOR_DESC[ThinQProperty.BRIGHTNESS],
@@ -659,8 +684,22 @@ async def async_setup_entry(
     """Set up an entry for sensor platform."""
     entities: list[
         ThinQSensorEntity | ThinQEnergySensorEntity | ThinQEnumTempSensorEntity
+        | ThinQEventStatusSensor
     ] = []
     for coordinator in entry.runtime_data.coordinators.values():
+        for event_description in DEVICE_TYPE_EVENT_MAP.get(
+            coordinator.api.device.device_type, ()
+        ):
+            entities.extend(
+                ThinQEventStatusSensor(
+                    coordinator,
+                    EVENT_STATUS_DESC[event_description.key],
+                    property_id,
+                )
+                for property_id in coordinator.api.get_active_idx(
+                    event_description.key, ActiveMode.READ_ONLY
+                )
+            )
         if (
             descriptions := DEVICE_TYPE_SENSOR_MAP.get(
                 coordinator.api.device.device_type
@@ -715,6 +754,23 @@ async def async_setup_entry(
             )
     if entities:
         async_add_entities(entities)
+
+
+class ThinQEventStatusSensor(ThinQEntity, SensorEntity):
+    """Show the current event field, or OK when it is empty."""
+
+    def __init__(
+        self,
+        coordinator: DeviceDataUpdateCoordinator,
+        entity_description: SensorEntityDescription,
+        property_id: str,
+    ) -> None:
+        super().__init__(coordinator, entity_description, property_id, "status")
+
+    @override
+    def _update_status(self) -> None:
+        value = self.data.value
+        self._attr_native_value = value if isinstance(value, str) and value else "OK"
 
 
 class ThinQSensorEntity(ThinQEntity, SensorEntity):
@@ -952,5 +1008,4 @@ class ThinQEnumTempSensorEntity(ThinQEntity, SensorEntity):
             self.options,
             self.native_unit_of_measurement,
         )
-
 

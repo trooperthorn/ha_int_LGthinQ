@@ -37,6 +37,12 @@
       "one_touch_filter": {
         "name": "Fresh air filter"
       },
+      "oven_remote_ready": {
+        "name": "Oven remote start enabled"
+      },
+      "oven_remote_ready_for_location": {
+        "name": "{location} remote start enabled"
+      },
       "operation_mode": {
         "name": "[%key:component::binary_sensor::entity_component::power::name%]"
       },
@@ -302,6 +308,9 @@
           "convection_bake": "Convection bake",
           "convection_roast": "Convection roast",
           "crisp_convection": "Crisp convection",
+          "off": "Off",
+          "off_remote_ready": "Off (remote ready)",
+          "on": "On",
           "roast": "Roast"
         }
       },
@@ -312,6 +321,9 @@
           "convection_bake": "[%key:component::lg_thinq_extended::entity::select::cook_mode::state::convection_bake%]",
           "convection_roast": "[%key:component::lg_thinq_extended::entity::select::cook_mode::state::convection_roast%]",
           "crisp_convection": "[%key:component::lg_thinq_extended::entity::select::cook_mode::state::crisp_convection%]",
+          "off": "[%key:component::lg_thinq_extended::entity::select::cook_mode::state::off%]",
+          "off_remote_ready": "[%key:component::lg_thinq_extended::entity::select::cook_mode::state::off_remote_ready%]",
+          "on": "[%key:component::lg_thinq_extended::entity::select::cook_mode::state::on%]",
           "roast": "[%key:component::lg_thinq_extended::entity::select::cook_mode::state::roast%]"
         }
       },
@@ -405,9 +417,18 @@
         "name": "Operation",
         "state": {
           "cancel": "[%key:component::lg_thinq_extended::entity::sensor::current_state::state::cancel%]",
+          "delayed": "Delayed",
+          "error": "Error",
+          "finished": "Finished",
+          "off": "Off",
+          "off_remote_ready": "Off (remote ready)",
+          "on": "On",
           "power_off": "Power off",
           "power_on": "Power on",
           "preheating": "Preheating",
+          "paused": "Paused",
+          "ready": "Ready",
+          "running": "Running",
           "start": "[%key:common::action::start%]",
           "stop": "[%key:common::action::stop%]",
           "wake_up": "Sleep mode off"
@@ -417,9 +438,18 @@
         "name": "{location} operation",
         "state": {
           "cancel": "[%key:component::lg_thinq_extended::entity::sensor::current_state::state::cancel%]",
+          "delayed": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::delayed%]",
+          "error": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::error%]",
+          "finished": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::finished%]",
+          "off": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::off%]",
+          "off_remote_ready": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::off_remote_ready%]",
+          "on": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::on%]",
           "power_off": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::power_off%]",
           "power_on": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::power_on%]",
           "preheating": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::preheating%]",
+          "paused": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::paused%]",
+          "ready": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::ready%]",
+          "running": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::running%]",
           "start": "[%key:common::action::start%]",
           "stop": "[%key:common::action::stop%]",
           "wake_up": "[%key:component::lg_thinq_extended::entity::select::operation_mode::state::wake_up%]"
@@ -459,6 +489,18 @@
       }
     },
     "sensor": {
+      "error_status": {
+        "name": "Error status"
+      },
+      "error_status_for_location": {
+        "name": "{location} error status"
+      },
+      "notification_status": {
+        "name": "Notification status"
+      },
+      "notification_status_for_location": {
+        "name": "{location} notification status"
+      },
       "absolute_to_start": {
         "name": "[%key:component::lg_thinq_extended::entity::number::relative_hour_to_start::name%]"
       },
@@ -1194,5 +1236,4 @@
     }
   }
 }
-
 

@@ -9,11 +9,14 @@ from thinqconnect.integration import ActiveMode
 
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ThinqConfigEntry
 from .coordinator import DeviceDataUpdateCoordinator
 from .entity import ThinQEntity
+from .laundry_status import laundry_operation_display
+from .oven_control import oven_control_state, oven_display_state
 
 SELECT_DESC: dict[ThinQProperty, SelectEntityDescription] = {
     ThinQProperty.MONITORING_ENABLED: SelectEntityDescription(
@@ -194,7 +197,41 @@ class ThinQSelectEntity(ThinQEntity, SelectEntity):
         """Update status itself."""
         super()._update_status()
 
-        if self.data.value:
+        if self._is_oven_command:
+            command_options = self.data.options or []
+            run_state, remote_enabled = oven_control_state(
+                self.coordinator.data, self.location
+            )
+            display_state = oven_display_state(run_state, remote_enabled)
+            if display_state:
+                self._attr_current_option = (
+                    str(self.data.value)
+                    if (
+                        self.entity_description.key == ThinQProperty.COOK_MODE
+                        and run_state != "initial"
+                        and self.data.value in command_options
+                    )
+                    else display_state
+                )
+                # An off oven without remote start enabled has no safe actions.
+                self._attr_options = [self._attr_current_option]
+                if remote_enabled:
+                    self._attr_options.extend(
+                        option for option in command_options
+                        if option != self._attr_current_option
+                    )
+            else:
+                self._attr_current_option = None
+                self._attr_options = []
+        elif self._is_laundry_command:
+            display_state = laundry_operation_display(
+                self.coordinator.data, self.location
+            )
+            self._attr_current_option = display_state
+            self._attr_options = list(self.data.options or [])
+            if display_state:
+                self._attr_options.insert(0, display_state)
+        elif self.data.value:
             self._attr_current_option = str(self.data.value)
         else:
             self._attr_current_option = None
@@ -211,6 +248,12 @@ class ThinQSelectEntity(ThinQEntity, SelectEntity):
     @override
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
+        if self._is_oven_command:
+            if option not in (self.data.options or []):
+                raise ServiceValidationError("Oven display state is not a command")
+            await self.async_require_oven_remote_ready()
+        elif self._is_laundry_command and option not in (self.data.options or []):
+            raise ServiceValidationError("Laundry display state is not a command")
         _LOGGER.debug(
             "[%s:%s] async_select_option: %s",
             self.coordinator.device_name,
@@ -219,4 +262,30 @@ class ThinQSelectEntity(ThinQEntity, SelectEntity):
         )
         await self.async_call_api(self.coordinator.api.post(self.property_id, option))
 
+    @property
+    def _is_oven_command(self) -> bool:
+        """Identify the two oven selects whose options invoke controls."""
+        return (
+            self.coordinator.api.device.device_type == DeviceType.OVEN
+            and self.entity_description.key
+            in (ThinQProperty.COOK_MODE, ThinQProperty.OVEN_OPERATION_MODE)
+        )
+
+    @property
+    def _is_laundry_command(self) -> bool:
+        """Identify operation selects whose current values are write-only."""
+        return (
+            self.coordinator.api.device.device_type
+            in (
+                DeviceType.WASHER,
+                DeviceType.DRYER,
+                DeviceType.WASHCOMBO_MAIN,
+                DeviceType.WASHCOMBO_MINI,
+                DeviceType.WASHTOWER,
+                DeviceType.WASHTOWER_WASHER,
+                DeviceType.WASHTOWER_DRYER,
+            )
+            and self.entity_description.key
+            in (ThinQProperty.WASHER_OPERATION_MODE, ThinQProperty.DRYER_OPERATION_MODE)
+        )
 

@@ -1,6 +1,22 @@
 # Phased implementation plan
 
-Status: scoped on 2026-09-23. No appliance control changes are claimed as implemented.
+Status: first Phase 1 diagnostic and Windows probe work started on 2026-09-23. No appliance control changes are claimed as implemented.
+
+Phase 1 now includes a compact per-device capability summary in user-initiated diagnostics, built from the existing profile/state/energy GETs without additional API requests. The summary lists property paths, read/write permissions, constraints, observed state paths, notification codes, and energy availability. This change has local tests but awaits a Home Assistant runtime retest.
+
+Install blocker found on the owner's Home Assistant: `thinqconnect==1.0.14` requires `cryptography>=50.0.1`, conflicting with Home Assistant's `cryptography==48.0.1` pin. The fork now pins SDK 1.0.13. The owner-supplied [setup and reload logs](RUNTIME_VALIDATION.md) show that dependency installation, four-device setup, MQTT subscription, push updates, and reload completed on one Home Assistant instance. Control POSTs and detailed entity semantics remain untested.
+
+See [OBSERVED_RUNS.md](OBSERVED_RUNS.md) for the four captured appliance conditions and the invalid-PAT run. The invalid-key response drove the authentication guard; the changing washer, combo, and oven states define initial acceptance fixtures.
+
+## First owner-account probe (2026-09-23)
+
+- `GET /devices` returned four devices: two `DEVICE_WASHER`, one `DEVICE_REFRIGERATOR`, and one `DEVICE_OVEN`. LG does not distinguish the washer/dryer combo by device type on this account. The returned `modelName` strings are opaque identifiers here, not confirmed retail model numbers. The two washers must be evaluated by their individual profiles and observed behavior.
+- Both washer profiles advertise writable `washerOperationMode` (`START`, `STOP`, `POWER_OFF`, `POWER_ON`) and writable `relativeHourToStart`; neither snapshot had remote control enabled. One washer profile also advertises `DRYING_IS_COMPLETE`. The owner considers this the likely combo, but the physical mapping remains unverified. No control POST was tested.
+- The refrigerator profile advertises writable fridge/freezer target temperatures and `expressMode`. Its `powerSaveEnabled` and `sabbathMode` are read-only for this model. The state includes water-filter replacement status.
+- The oven profile advertises writable oven operation, cook mode, target temperature, and timer fields. Its energy-profile GET returned HTTP 406 with no response body; treat energy as unavailable for this model until further evidence.
+- The other three energy-profile GETs returned HTTP 200 with `energyUsage` in the response. Daily usage was not queried. All device profile and state GETs returned HTTP 200.
+
+These findings are from one owner's redacted diagnostic run, not a general LG model-support guarantee. Keep the original diagnostic files local and out of Git.
 
 ## Principles
 
@@ -21,7 +37,7 @@ Status: scoped on 2026-09-23. No appliance control changes are claimed as implem
 
 ## Phase 1 — Official API coverage and capability inventory
 
-- Inventory the 1.0.14 SDK calls against every documented route (see `API_COVERAGE.md`). Record which are used directly, by the SDK bridge, or unused.
+- Inventory the pinned 1.0.13 SDK calls against every documented route (see `API_COVERAGE.md`). Record which are used directly, by the SDK bridge, or unused.
 - Add a redacted diagnostic report containing device type, profile property paths, read/write flags, enum/range constraints, notification codes, state path presence, and energy profile availability. No PAT or MQTT certificate output.
 - Check event subscription expiry and renewal against current LG documentation. The SDK source and displayed LG documentation appear to disagree on the expiry value; resolve with a safe, read-only source audit before changing subscription timing.
 - Expose a read-only capability view for unsupported properties, rather than silently claiming support.

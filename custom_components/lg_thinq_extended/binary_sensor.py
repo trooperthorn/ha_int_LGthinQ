@@ -86,6 +86,11 @@ BINARY_SENSOR_DESC: dict[ThinQProperty, ThinQBinarySensorEntityDescription] = {
     ),
 }
 
+OVEN_REMOTE_READY_DESC = ThinQBinarySensorEntityDescription(
+    key=ThinQProperty.REMOTE_CONTROL_ENABLED,
+    translation_key="oven_remote_ready",
+)
+
 DEVICE_TYPE_BINARY_SENSOR_MAP: dict[
     DeviceType, tuple[ThinQBinarySensorEntityDescription, ...]
 ] = {
@@ -100,7 +105,7 @@ DEVICE_TYPE_BINARY_SENSOR_MAP: dict[
     ),
     DeviceType.DRYER: (BINARY_SENSOR_DESC[ThinQProperty.REMOTE_CONTROL_ENABLED],),
     DeviceType.HOOD: (BINARY_SENSOR_DESC[ThinQProperty.HOOD_OPERATION_MODE],),
-    DeviceType.OVEN: (BINARY_SENSOR_DESC[ThinQProperty.REMOTE_CONTROL_ENABLED],),
+    DeviceType.OVEN: (OVEN_REMOTE_READY_DESC,),
     DeviceType.REFRIGERATOR: (
         BINARY_SENSOR_DESC[ThinQProperty.DOOR_STATE],
         BINARY_SENSOR_DESC[ThinQProperty.ECO_FRIENDLY_MODE],
@@ -180,5 +185,4 @@ class ThinQBinarySensorEntity(ThinQEntity, BinarySensorEntity):
             self.data.value,
             self.is_on,
         )
-
 

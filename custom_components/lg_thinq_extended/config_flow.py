@@ -6,7 +6,7 @@ from typing import Any, override
 import uuid
 
 import probatio
-from thinqconnect import ThinQApi, ThinQAPIErrorCodes, ThinQAPIException
+from thinqconnect import ThinQAPIErrorCodes, ThinQAPIException
 from thinqconnect.country import Country
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
@@ -23,6 +23,7 @@ from .const import (
     THINQ_DEFAULT_NAME,
     THINQ_PAT_URL,
 )
+from .api import ThinQGuardedApi
 
 SUPPORTED_COUNTRIES = [country.value for country in Country]
 THINQ_ERRORS = {
@@ -56,7 +57,7 @@ class ThinQFlowHandler(ConfigFlow, domain=DOMAIN):
         connect_client_id = f"{CLIENT_PREFIX}-{uuid.uuid4()!s}"
 
         # To verify PAT, create an api to retrieve the device list.
-        await ThinQApi(
+        await ThinQGuardedApi(
             session=async_get_clientsession(self.hass),
             access_token=access_token,
             country_code=country_code,
