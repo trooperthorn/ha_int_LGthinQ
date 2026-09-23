@@ -17,6 +17,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import COMPANY, DEVICE_UNIT_TO_HA, DOMAIN
 from .coordinator import DeviceDataUpdateCoordinator
+from .laundry_status import laundry_remote_ready
 from .oven_control import oven_command_allowed, oven_control_state
 
 _LOGGER = logging.getLogger(__name__)
@@ -113,6 +114,22 @@ class ThinQEntity(CoordinatorEntity[DeviceDataUpdateCoordinator]):
         if not oven_command_allowed(run_state, remote_enabled):
             raise ServiceValidationError(
                 "Oven is off and remote start is disabled; enable it at the appliance"
+            )
+
+    async def async_require_laundry_remote_ready(self) -> None:
+        """Read current state before START so a stale remote flag cannot start a load."""
+        try:
+            fresh = await self.coordinator.api.fetch_data()
+        except (ThinQAPIException, ClientError, TimeoutError) as exc:
+            raise ServiceValidationError(
+                "Could not verify laundry remote-start status"
+            ) from exc
+        if not isinstance(fresh, dict):
+            raise ServiceValidationError("Could not verify laundry remote-start status")
+        self.coordinator.async_set_updated_data(fresh)
+        if not laundry_remote_ready(fresh, self.location):
+            raise ServiceValidationError(
+                "Remote start is disabled; enable it at the appliance"
             )
 
     async def async_call_api(
