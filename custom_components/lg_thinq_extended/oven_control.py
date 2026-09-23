@@ -27,3 +27,8 @@ def oven_display_state(run_state: str | None, remote_enabled: bool) -> str | Non
         return "on"
     return None
 
+
+def oven_command_allowed(run_state: str | None, remote_enabled: bool) -> bool:
+    """Permit an active cavity or a remotely armed idle cavity."""
+    return run_state is not None and (remote_enabled or run_state != "initial")
+

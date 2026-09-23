@@ -1,0 +1,31 @@
+name: Validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  static-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Test and compile
+        run: |
+          python -m unittest discover -s tests -v
+          python -m compileall -q custom_components tests
+      - name: Check metadata
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('custom_components/lg_thinq_extended')
+          manifest = json.loads((root / 'manifest.json').read_text(encoding='utf-8'))
+          assert manifest['requirements'] == ['thinqconnect==1.0.13']
+          json.loads((root / 'strings.json').read_text(encoding='utf-8'))
+          json.loads((root / 'icons.json').read_text(encoding='utf-8'))
+          PY
+

@@ -24,11 +24,13 @@ from homeassistant.helpers.issue_registry import (
     async_create_issue,
     async_delete_issue,
 )
+from homeassistant.exceptions import ServiceValidationError
 
 from . import ThinqConfigEntry
 from .const import DOMAIN
 from .entity import ThinQEntity
-from .oven_control import oven_control_state
+from .oven_control import oven_command_allowed, oven_control_state
+from .value_validation import validate_profile_number
 
 NUMBER_DESC: dict[ThinQProperty, NumberEntityDescription] = {
     ThinQProperty.FAN_SPEED: NumberEntityDescription(
@@ -253,9 +255,9 @@ class ThinQNumberEntity(ThinQEntity, NumberEntity):
             self.coordinator.api.device.device_type == DeviceType.OVEN
             and self.entity_description.key == ThinQProperty.TARGET_TEMPERATURE
         ):
-            return super().available and oven_control_state(
-                self.coordinator.data, self.location
-            )[1]
+            return super().available and oven_command_allowed(
+                *oven_control_state(self.coordinator.data, self.location)
+            )
         return super().available
 
     @override
@@ -306,6 +308,11 @@ class ThinQNumberEntity(ThinQEntity, NumberEntity):
     @override
     async def async_set_native_value(self, value: float) -> None:
         """Change to new number value."""
+        if self.coordinator.api.device.device_type == DeviceType.REFRIGERATOR:
+            try:
+                validate_profile_number(value, self.data.min, self.data.max, self.data.step)
+            except ValueError as exc:
+                raise ServiceValidationError(str(exc)) from exc
         if (
             self.coordinator.api.device.device_type == DeviceType.OVEN
             and self.entity_description.key == ThinQProperty.TARGET_TEMPERATURE

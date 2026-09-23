@@ -60,7 +60,7 @@ class ThinQMQTT:
         if self.client is not None:
             try:
                 await self.client.async_disconnect()
-            except ThinQAPIException, TypeError, ValueError, ClientError, TimeoutError:
+            except (ThinQAPIException, TypeError, ValueError, ClientError, TimeoutError):
                 # Saying goodbye is a courtesy, never a reason to fail the unload
                 _LOGGER.exception("Failed to disconnect")
 
@@ -71,10 +71,10 @@ class ThinQMQTT:
         # Note that result code '1207' means 'Already subscribed push'
         # and is not actually fail.
         return sum(
-            isinstance(result, (TypeError, ValueError))
-            or (
+            isinstance(result, BaseException)
+            and not (
                 isinstance(result, ThinQAPIException)
-                and result.code != ThinQAPIErrorCodes.ALREADY_SUBSCRIBED_PUSH
+                and result.code == ThinQAPIErrorCodes.ALREADY_SUBSCRIBED_PUSH
             )
             for result in results
         )

@@ -6,7 +6,7 @@ An independent, Apache-2.0 licensed development fork of Home Assistant's built-i
 
 This is a **development build**, not a tested release. The copied integration has been renamed to the `lg_thinq_extended` domain so Home Assistant will not replace its built-in `lg_thinq` files. The first addition is user-initiated, redacted profile/state/energy-profile diagnostics for priority appliances. A [Windows ThinQ Connect probe](tools/README.md) collects GET responses and supports a separately confirmed control POST. [Five owner probe runs](OBSERVED_RUNS.md) now inform authentication handling and state behavior. No additional appliance control has been validated on hardware yet. The fork pins `thinqconnect==1.0.13` because SDK 1.0.14's cryptography requirement conflicts with the owner's Home Assistant installation. See [UPSTREAM.md](UPSTREAM.md) for source provenance and [PLAN.md](PLAN.md) for phases and acceptance gates.
 
-Do not install this as a replacement for a working LG setup yet. Running both integrations against the same account may create duplicate devices and API traffic. The custom domain also means entities and automations from built-in `lg_thinq` will not migrate automatically.
+This remains a development build. Running both integrations against the same account may create duplicate devices and API traffic. The custom domain also means entities and automations from built-in `lg_thinq` will not migrate automatically. See [migration guidance](MIGRATION.md) and the [observed model support matrix](MODEL_SUPPORT.md).
 
 ## Goals
 
@@ -27,5 +27,7 @@ LG's PAT documentation limits the token to personal, non-commercial use. Develop
 
 ## Development
 
-The source is under `custom_components/lg_thinq_extended`. The copied upstream code is preserved as a baseline, with domain and manifest metadata adjusted. [Initial runtime validation](RUNTIME_VALIDATION.md) records successful setup and reload on one owner's Home Assistant instance. User-initiated diagnostics now include a concise capability summary without extra API calls; that newer change needs a runtime retest. LG's SDK DEBUG logs can include device IDs and certificate response data; review and redact them before sharing.
+The source is under `custom_components/lg_thinq_extended`. The copied upstream code is preserved as a baseline, with domain and manifest metadata adjusted. [Initial runtime validation](RUNTIME_VALIDATION.md) records successful setup and reload on one owner's Home Assistant instance. User-initiated diagnostics include a capability summary from the existing per-device GETs and now query four additional account-level read-only endpoints; that newer change needs a runtime retest. LG's SDK DEBUG logs can include device IDs and certificate response data; review and redact them before sharing.
+
+For a supervised appliance command trial, use the [live control POST checklist](CONTROL_TEST.md). Installation and diagnostics do not send control POSTs.
 

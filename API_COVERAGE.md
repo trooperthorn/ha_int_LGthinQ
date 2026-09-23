@@ -4,16 +4,16 @@ LG reference: [ThinQ API](https://smartsolution.developer.lge.com/en/apiManage/t
 
 | Official call family | SDK method in 1.0.13 | Baseline use and phased disposition |
 |---|---|---|
-| `GET /route` | `async_get_route` | SDK supports discovery; audit where bridge uses it in Phase 1. |
+| `GET /route` | `async_get_route` | User-initiated diagnostics record availability without returning route URLs. |
 | `GET /devices` | `async_get_device_list` | Device discovery; retain. |
-| `GET /devices/{id}/profile` | `async_get_device_profile` | Profile-aware entities; add redacted capability inventory. |
-| `GET /devices/{id}/state` | `async_get_device_status` | Initial/refresh state; add device-specific state mapping. |
-| `POST /devices/{id}/control` | `async_post_device_control` | Existing entity controls use SDK commands. Expand only with profile-validated, conditional, explicit controls. |
-| `GET /push`, `POST /push/{id}/subscribe`, `DELETE /push/{id}/unsubscribe` | Push list/subscribe/unsubscribe methods | MQTT push lifecycle exists in SDK; audit cleanup and event mapping. |
-| `GET /push/devices`, `POST /push/devices`, `DELETE /push/devices` | Device-list push methods | Audit device add/remove/rename handling; no separate user action planned. |
-| `GET /event`, `POST /event/{id}/subscribe`, `DELETE /event/{id}/unsubscribe` | Event list/subscribe/unsubscribe methods | MQTT status lifecycle exists in SDK; audit expiry/renewal and stale-state behavior. |
+| `GET /devices/{id}/profile` | `async_get_device_profile` | Profile-aware entities and redacted capability inventory implemented. |
+| `GET /devices/{id}/state` | `async_get_device_status` | Initial/refresh state and device-specific state mapping implemented; hardware checks pending. |
+| `POST /devices/{id}/control` | `async_post_device_control` | Existing entity controls use SDK commands and `x-conditional-control: true`. Profile-gated temperature ranges and oven state guard added; live POST validation pending. |
+| `GET /push`, `POST /push/{id}/subscribe`, `DELETE /push/{id}/unsubscribe` | Push list/subscribe/unsubscribe methods | Diagnostics list redacted subscriptions; MQTT lifecycle subscribes and unsubscribes. |
+| `GET /push/devices`, `POST /push/devices`, `DELETE /push/devices` | Device-list push methods | Diagnostics read the redacted device-change subscription list. The create/delete calls are available in the SDK but are not invoked by this integration; device add/remove/rename handling remains a gap. |
+| `GET /event`, `POST /event/{id}/subscribe`, `DELETE /event/{id}/unsubscribe` | Event list/subscribe/unsubscribe methods | Diagnostics list redacted event subscriptions; MQTT lifecycle subscribes, renews daily, and unsubscribes. Expiry timing remains to be verified against LG documentation. |
 | `POST /client`, `DELETE /client`, `POST /client/certificate` | Client registration/deletion/certificate methods | Transport plumbing, not appliance controls. Audit certificate storage and unload behavior. |
-| `GET /devices/energy/{id}/profile` | `async_get_device_energy_profile` | Energy capability detection; verify by model/country. |
+| `GET /devices/energy/{id}/profile` | `async_get_device_energy_profile` | Energy capability detection implemented; owner oven returns HTTP 406 while three other devices return HTTP 200. |
 | `GET /devices/energy/{id}/usage` | `async_get_device_energy_usage` | Baseline energy sensors include today, yesterday, this month and last month when data exists; test daily/monthly limits and rollovers. |
 
 ## Invocation policy
