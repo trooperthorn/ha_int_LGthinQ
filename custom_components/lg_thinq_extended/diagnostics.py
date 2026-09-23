@@ -54,6 +54,19 @@ async def async_get_config_entry_diagnostics(
     except (ClientError, OSError, TimeoutError):
         return {"country": entry.data[CONF_COUNTRY], "device_list_error": "network_or_timeout"}
 
+    # These account-level GETs are made only when diagnostics are requested.
+    # Redaction removes client and device identifiers from subscription lists.
+    subscriptions = {
+        "push": await _capture(api.async_get_push_list()),
+        "device_changes": await _capture(api.async_get_push_devices_list()),
+        "events": await _capture(api.async_get_event_list()),
+    }
+    route = await _capture(api.async_get_route())
+    route_status = (
+        {"available": bool(route["response"])}
+        if "response" in route else route
+    )
+
     devices: list[dict[str, Any]] = []
     seen: set[str] = set()
     matched = 0
@@ -90,6 +103,8 @@ async def async_get_config_entry_diagnostics(
         "country": entry.data[CONF_COUNTRY],
         "priority_devices_found": matched,
         "max_devices_captured": _MAX_DEVICES,
+        "route": route_status,
+        "subscriptions": subscriptions,
         "devices": devices,
         "note": "Review before sharing; arbitrary vendor fields can contain private data.",
     }
