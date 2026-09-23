@@ -8,4 +8,5 @@ coverage.xml
 .coverage
 secrets.yaml
 *.log
+tools/diagnostics/
 
