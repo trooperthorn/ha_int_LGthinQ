@@ -3,8 +3,8 @@
 import logging
 from typing import override
 
-from thinqconnect import DeviceType
-from thinqconnect.integration import ActiveMode, ThinQPropertyEx
+from .client import DeviceType
+from .client.integration import ActiveMode, ThinQPropertyEx
 
 from homeassistant.components.event import EventEntity, EventEntityDescription
 from homeassistant.core import HomeAssistant

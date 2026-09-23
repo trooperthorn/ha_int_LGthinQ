@@ -7,9 +7,9 @@ import logging
 import random
 from typing import override
 
-from thinqconnect import USAGE_DAILY, USAGE_MONTHLY, DeviceType, ThinQAPIException
-from thinqconnect.devices.const import Property as ThinQProperty
-from thinqconnect.integration import ActiveMode, ThinQPropertyEx, TimerProperty
+from .client import USAGE_DAILY, USAGE_MONTHLY, DeviceType, ThinQAPIException
+from .client.devices.const import Property as ThinQProperty
+from .client.integration import ActiveMode, ThinQPropertyEx, TimerProperty
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,

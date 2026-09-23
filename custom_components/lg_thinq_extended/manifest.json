@@ -1,14 +1,19 @@
 {
   "domain": "lg_thinq_extended",
   "name": "LG ThinQ Extended",
-  "codeowners": ["@trooperthorn"],
+  "codeowners": [
+    "@trooperthorn"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/trooperthorn/ha_int_LGthinQ",
   "integration_type": "hub",
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/trooperthorn/ha_int_LGthinQ/issues",
-  "loggers": ["thinqconnect"],
-  "requirements": ["thinqconnect==1.0.13"],
-  "version": "0.1.0"
+  "loggers": [
+    "custom_components.lg_thinq_extended.client"
+  ],
+  "requirements": [
+    "paho-mqtt==2.1.0"
+  ],
+  "version": "0.2.0"
 }
-

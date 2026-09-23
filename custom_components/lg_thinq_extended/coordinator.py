@@ -5,8 +5,8 @@ from datetime import time
 import logging
 from typing import TYPE_CHECKING, Any, override
 
-from thinqconnect import ThinQAPIException
-from thinqconnect.integration import HABridge
+from .client import ThinQAPIException
+from .client.integration import HABridge
 
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
 from homeassistant.core import Event, HomeAssistant, callback

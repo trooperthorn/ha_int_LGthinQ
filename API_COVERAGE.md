@@ -1,5 +1,7 @@
 # Official API call coverage inventory
 
+Version 0.2.0 invokes all 19 exported operations through the internal direct client. SDK names in the historical table below now name retained internal interfaces. See [DIRECT_CLIENT.md](DIRECT_CLIENT.md). Event subscriptions now request 24 hours and renew every 12 hours.
+
 LG reference: [ThinQ API](https://smartsolution.developer.lge.com/en/apiManage/thinq_connect). SDK reference: [`thinq_api.py`](https://github.com/thinq-connect/pythinqconnect/blob/1.0.13/thinqconnect/thinq_api.py). The fork pins `thinqconnect==1.0.13` because the owner's Home Assistant environment pins `cryptography==48.0.1`, while SDK 1.0.14 requires `cryptography>=50.0.1`. “SDK method” means a callable exists, not that this fork offers a user-facing Home Assistant action or that every model supports it.
 
 | Official call family | SDK method in 1.0.13 | Baseline use and phased disposition |

@@ -4,9 +4,9 @@ from dataclasses import dataclass
 import logging
 from typing import override
 
-from thinqconnect import DeviceType
-from thinqconnect.devices.const import Property as ThinQProperty
-from thinqconnect.integration import ActiveMode
+from .client import DeviceType
+from .client.devices.const import Property as ThinQProperty
+from .client.integration import ActiveMode
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,

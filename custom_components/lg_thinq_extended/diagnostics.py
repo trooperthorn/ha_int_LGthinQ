@@ -3,7 +3,7 @@
 from typing import Any
 from aiohttp import ClientError
 
-from thinqconnect import ThinQAPIException
+from .client import ThinQAPIException
 
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_COUNTRY
 from homeassistant.core import HomeAssistant

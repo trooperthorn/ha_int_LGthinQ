@@ -8,7 +8,7 @@ from time import monotonic
 from typing import Any
 
 from aiohttp import ClientError
-from thinqconnect import (
+from .client import (
     DeviceType,
     ThinQApi,
     ThinQAPIErrorCodes,
@@ -88,6 +88,8 @@ class ThinQMQTT:
     async def async_refresh_subscribe(self, now: datetime | None = None) -> None:
         """Update event subscribes."""
         _LOGGER.debug("async_refresh_subscribe: now=%s", now)
+        if self.client is not None:
+            await self.client.async_refresh_certificate()
 
         tasks = [
             self.hass.async_create_task(

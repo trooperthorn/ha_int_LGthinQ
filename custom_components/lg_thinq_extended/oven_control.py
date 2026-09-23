@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from thinqconnect.devices.const import Property as ThinQProperty
+from .client.devices.const import Property as ThinQProperty
 
 
 def oven_control_state(data: Mapping[str, Any], location: str | None) -> tuple[str | None, bool]:

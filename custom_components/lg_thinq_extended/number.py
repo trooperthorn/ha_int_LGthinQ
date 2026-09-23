@@ -3,9 +3,9 @@
 import logging
 from typing import override
 
-from thinqconnect import DeviceType
-from thinqconnect.devices.const import Property as ThinQProperty
-from thinqconnect.integration import ActiveMode, TimerProperty
+from .client import DeviceType
+from .client.devices.const import Property as ThinQProperty
+from .client.integration import ActiveMode, TimerProperty
 
 from homeassistant.components.automation import automations_with_entity
 from homeassistant.components.number import (
