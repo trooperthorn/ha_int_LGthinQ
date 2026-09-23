@@ -160,10 +160,9 @@ class ThinQMQTT:
         **kwargs: dict,
     ) -> None:
         """Handle the received message that matching the topic."""
-        decoded = payload.decode()
         try:
-            message = json.loads(decoded)
-        except ValueError:
+            message = json.loads(payload.decode())
+        except (UnicodeDecodeError, ValueError):
             _LOGGER.error("Failed to parse LG device message")
             return
         if not isinstance(message, dict):
