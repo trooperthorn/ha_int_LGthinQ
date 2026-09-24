@@ -1,8 +1,6 @@
 """Profile-gated monitoring entities using existing reports and local history."""
 from dataclasses import dataclass
 from datetime import timedelta
-import hashlib
-import json
 
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
@@ -13,7 +11,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
-from .metrics import ACTIVE, OVEN_ACTIVE, Observations, minutes, progress
+from .metrics import ACTIVE, OVEN_ACTIVE, Observations, minutes, progress, capability_digest
 
 
 class Monitoring:
@@ -42,7 +40,7 @@ class Monitoring:
             value["error"] = "not_refreshed"
         profiles = {key: [h.profile for h in (value.holders or [])]
                     for key, value in self.coordinator.data.items()}
-        digest = hashlib.sha256(json.dumps(profiles, sort_keys=True, default=str).encode()).hexdigest()
+        digest = capability_digest(profiles)
         if self.history.values.get("profile_digest") != digest:
             self.history.values["profile_digest"] = digest
             self.history.values["profile_changed"] = dt_util.now().isoformat()
@@ -178,6 +176,9 @@ def definitions(coordinator):
                         lambda k=key, s=stage: raw(k) == s if raw(k) is not None else None))
                     sensors.append(Metric(prefix+stage+"_duration", location+" observed "+stage.replace("_", " ")+" duration",
                         lambda k=key, s=stage: history.duration(k, dt_util.now(), {s}), "s", "duration"))
+                for stage in ("preheat", "cook"):
+                    sensors.append(Metric(prefix+"last_"+stage+"_complete", location+" last observed "+stage+" completion",
+                        lambda p=prefix, s=stage: stored(p+"last_"+s+"_complete"), kind="timestamp"))
                 for stage in ("preheat", "cooking"):
                     sensors.append(Metric(prefix+"last_"+stage+"_seconds", location+" last completed "+stage+" duration",
                         lambda p=prefix, s=stage: stored(p+"last_"+s+"_seconds"), "s", "duration"))

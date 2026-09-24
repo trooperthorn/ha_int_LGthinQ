@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import copy
 import unittest
 import client_loader
-from custom_components.lg_thinq_extended.metrics import Observations, minutes, progress
+from custom_components.lg_thinq_extended.metrics import Observations, minutes, progress, capability_digest
 
 class MetricTests(unittest.TestCase):
     def setUp(self):
@@ -85,3 +85,7 @@ class MetricTests(unittest.TestCase):
         h.observe({"main_cycle_count": 0}, self.now+timedelta(minutes=3))
         self.assertIn("main_cycle_count_reset", h.values)
         self.assertEqual(h.total(self.now, "main_cycle_count_increments"), 1)
+
+    def test_capability_hash_ignores_order_but_detects_new_value(self):
+        self.assertEqual(capability_digest({"r": ["A", "B"]}), capability_digest({"r": ["B", "A"]}))
+        self.assertNotEqual(capability_digest({"r": ["A", "B"]}), capability_digest({"r": ["A", "C"]}))

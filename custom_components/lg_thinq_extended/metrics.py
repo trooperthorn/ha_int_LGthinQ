@@ -1,5 +1,7 @@
 """Local appliance observations; no network calls or Home Assistant dependency."""
 from datetime import datetime, timedelta, timezone
+import hashlib
+import json
 
 ACTIVE = frozenset({"running", "soaking", "dispensing", "refreshing", "prewash",
     "drying", "spinning", "detergent_amount", "steam_softening", "add_drain",
@@ -164,3 +166,14 @@ class Observations:
             self.add(now.date().isoformat(), "errors", 1)
         if message in {"washing_is_complete", "drying_is_complete", "preheating_is_complete", "cooking_is_complete"}:
             self.values["last_"+message.removesuffix("_is_complete")+"_notification"] = now.isoformat()
+
+
+def capability_digest(profiles):
+    """LG can reorder enum values without changing a device capability."""
+    def normalize(value):
+        if isinstance(value, dict):
+            return {key: normalize(item) for key, item in value.items()}
+        if isinstance(value, (tuple, list)):
+            return sorted((normalize(item) for item in value), key=lambda item: json.dumps(item, sort_keys=True, default=str))
+        return value
+    return hashlib.sha256(json.dumps(normalize(profiles), sort_keys=True, default=str).encode()).hexdigest()
