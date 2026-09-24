@@ -1,6 +1,6 @@
 """Profile-gated monitoring entities using existing reports and local history."""
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 import hashlib
 import json
 
@@ -209,7 +209,7 @@ def definitions(coordinator):
                 if value is None and k.endswith("detergent_setting"):
                     holders = coordinator.data[k].holders or []
                     for holder in holders:
-                        values = holder.profile.get("read_values")
+                        values = holder.profile.get("r")
                         if isinstance(values, list) and len(values) == 1:
                             return str(values[0]).lower()
                 return value
@@ -249,7 +249,9 @@ class MonitoringSensor(MonitoringEntity, SensorEntity):
         self._attr_native_unit_of_measurement = metric.unit
         if metric.kind:
             self._attr_device_class = SensorDeviceClass(metric.kind)
-        if metric.unit and metric.kind != "timestamp":
+        if metric.name.endswith("today") and not metric.diagnostic:
+            self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        elif metric.unit and metric.kind != "timestamp":
             self._attr_state_class = SensorStateClass.MEASUREMENT
             self._attr_suggested_display_precision = 1
 

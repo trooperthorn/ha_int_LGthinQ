@@ -60,6 +60,7 @@ class ThinQMQTT:
                 monitor.ever_connected = True
             else:
                 monitor.last_disconnect = dt_util.now()
+                monitor.history.advance(dt_util.now())
                 monitor.history.gap()
             monitor.save_later()
             monitor.notify()
