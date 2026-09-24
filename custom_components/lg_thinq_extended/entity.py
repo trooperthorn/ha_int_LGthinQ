@@ -46,6 +46,7 @@ class ThinQEntity(CoordinatorEntity[DeviceDataUpdateCoordinator]):
 
         self._attr_device_info = dr.DeviceInfo(
             identifiers={(DOMAIN, coordinator.unique_id)},
+            connections={(dr.CONNECTION_NETWORK_MAC, coordinator.insights.mac)} if coordinator.insights.mac and coordinator.sub_id is None else set(),
             manufacturer=COMPANY,
             model=(
                 f"{coordinator.api.device.model_name}"

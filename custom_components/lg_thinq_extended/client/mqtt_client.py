@@ -146,6 +146,10 @@ class ThinQMQTTClient:
         self._connected = False
         self._ready.clear()
 
+    @property
+    def certificate_expiry(self):
+        return self._expires
+
     async def async_refresh_certificate(self):
         if self._expires and self._expires <= datetime.now(timezone.utc) + timedelta(days=1):
             await self.async_prepare_mqtt()

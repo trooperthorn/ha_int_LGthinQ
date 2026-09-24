@@ -25,6 +25,8 @@ from .const import CONF_CONNECT_CLIENT_ID, DOMAIN, MQTT_SUBSCRIPTION_INTERVAL
 from .api import AUTH_ERROR_CODES, ThinQGuardedApi
 from .coordinator import DeviceDataUpdateCoordinator, async_setup_device_coordinator
 from .mqtt import ThinQMQTT
+from .device_inventory import parse_device_inventory
+from .services import register_services
 
 
 @dataclass(kw_only=True)
@@ -84,8 +86,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ThinqConfigEntry) -> boo
         coordinator.monitoring.start()
 
     # Clean up devices they are no longer in use.
-    async_cleanup_device_registry(hass, entry)
+    await async_cleanup_device_registry(hass, entry, thinq_api)
 
+    register_services(hass)
     return True
 
 
@@ -102,14 +105,14 @@ async def async_setup_coordinators(
         if exc.code in AUTH_ERROR_CODES:
             raise ConfigEntryAuthFailed("LG ThinQ credentials rejected") from exc
         raise ConfigEntryNotReady(exc.message) from exc
-    except (ClientError, TimeoutError) as exc:
+    except (ClientError, TimeoutError, ValueError) as exc:
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
             translation_key="connection_error",
         ) from exc
 
     if not bridge_list:
-        _LOGGER.warning("No devices registered with the correct profile")
+        _LOGGER.info("No supported devices loaded; add or remove appliances in the LG ThinQ app")
         return
 
     # Setup coordinator per device.
@@ -122,24 +125,25 @@ async def async_setup_coordinators(
         entry.runtime_data.coordinators[coordinator.unique_id] = coordinator
 
 
-@callback
-def async_cleanup_device_registry(hass: HomeAssistant, entry: ThinqConfigEntry) -> None:
-    """Clean up device registry."""
-    new_device_unique_ids = [
-        coordinator.unique_id
-        for coordinator in entry.runtime_data.coordinators.values()
-    ]
-    device_registry = dr.async_get(hass)
-    existing_entries = dr.async_entries_for_config_entry(
-        device_registry, entry.entry_id
-    )
-
-    # Remove devices that are no longer exist.
-    for old_entry in existing_entries:
-        old_unique_id = next(iter(old_entry.identifiers))[1]
-        if old_unique_id not in new_device_unique_ids:
-            device_registry.async_remove_device(old_entry.id)
-            _LOGGER.debug("Remove device_registry: device_id=%s", old_entry.id)
+async def async_cleanup_device_registry(hass, entry, thinq_api) -> None:
+    """Remove only this entry's devices confirmed absent from LG inventory."""
+    try:
+        inventory = parse_device_inventory(await thinq_api.async_get_device_list())
+    except (ThinQAPIException, ClientError, TimeoutError, ValueError):
+        _LOGGER.debug("Deferring registry cleanup until LG inventory can be confirmed")
+        return
+    if inventory is None:
+        return
+    registry = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        identifiers = [identifier for domain, identifier in device.identifiers if domain == DOMAIN]
+        # WashTower entities can have location suffixes on their cloud device ID.
+        if identifiers and not any(
+            identifier == cloud_id or identifier.startswith(cloud_id + "_")
+            for identifier in identifiers for cloud_id in inventory
+        ):
+            registry.async_remove_device(device.id)
+            _LOGGER.info("Detached an appliance removed through the LG ThinQ app")
 
 
 async def async_setup_mqtt(
@@ -166,7 +170,7 @@ async def async_setup_mqtt(
             translation_key="failed_to_connect_mqtt",
             translation_placeholders={"error": str(exc)},
         ) from exc
-    except (ClientError, TimeoutError) as exc:
+    except (ClientError, TimeoutError, ValueError) as exc:
         await mqtt_client.async_disconnect()
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,

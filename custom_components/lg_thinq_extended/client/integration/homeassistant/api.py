@@ -998,8 +998,13 @@ async def _async_create_ha_bridges(
     # Get a device profile from the server.
     try:
         profile = await thinq_api.async_get_device_profile(device_id)
-    except Exception:
-        _LOGGER.error("Cannot create ConnectDevice no profile info:%s", device_info)
+    except ThinQAPIException as exc:
+        if exc.code in {"1205", "1211", "1212", "1213", "1217"}:
+            _LOGGER.debug("Appliance no longer registered during profile discovery")
+            return []
+        raise
+    except (ValueError, TypeError):
+        _LOGGER.warning("LG profile is not ready; retry integration setup after provisioning completes")
         return []
 
     # Get a device energy profile from the server.

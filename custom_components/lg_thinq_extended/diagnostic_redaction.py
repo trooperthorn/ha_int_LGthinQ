@@ -7,7 +7,7 @@ from typing import Any
 
 _SENSITIVE_KEYS = re.compile(
     r"^(?:authorization|access.?token|refresh.?token|token|secret|password|"
-    r"csr|certificate|private.?key|public.?key|mac.?address|mac|ssid|alias|"
+    r"csr|certificate|private.?key|public.?key|mac.?address|wifi.?mac.?address|mac|ssid|alias|"
     r"nick.?name|email|user.?number|user.?list|account.?id|"
     r"serial(?:no|number)?|ip.?address|client.?id|service.?id)$",
     re.IGNORECASE,
