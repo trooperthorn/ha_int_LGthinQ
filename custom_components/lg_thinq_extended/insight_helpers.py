@@ -99,6 +99,13 @@ def payload_confirmed(payload, state):
 def merge_report(state, report):
     """Keep location-tagged cached state current without mixing cavities."""
     result = deepcopy(state)
+    if isinstance(report, list):
+        if not isinstance(result, list):
+            return deepcopy(report)
+        for item in report:
+            if isinstance(item, dict):
+                result = merge_report(result, item)
+        return result
     if not isinstance(report, dict):
         return result
     if isinstance(result, list):

@@ -58,3 +58,6 @@ jobs:
 
       - name: Validate HA actions and inventory lifecycle
         run: python tests/ha_insights_check.py
+
+      - name: Validate scheduled monitoring and MQTT location reports
+        run: python tests/ha_runtime_check.py
