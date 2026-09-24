@@ -24,6 +24,12 @@ async def main():
  with tempfile.TemporaryDirectory() as temp:
   hass=HomeAssistant(temp)
   hass.config_entries=SimpleNamespace(async_get_entry=lambda _:None)
+  import yaml
+  from homeassistant.components.script.config import SCRIPT_ENTITY_SCHEMA
+  from homeassistant.components.automation.config import PLATFORM_SCHEMA
+  example=yaml.safe_load((Path(__file__).resolve().parents[1]/'examples/lg_insights_package.yaml').read_text())
+  for script in example['script'].values(): SCRIPT_ENTITY_SCHEMA(script)
+  for automation in example['automation']: PLATFORM_SCHEMA(automation)
   fixture=json.loads((Path(__file__).parent/'fixtures/appliances.json').read_text())[0]
   api=ThinQGuardedApi(MagicMock(),'token','US','client')
   api.async_request=AsyncMock()
