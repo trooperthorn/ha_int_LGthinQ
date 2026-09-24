@@ -4,9 +4,9 @@ from dataclasses import dataclass
 import logging
 from typing import override
 
-from thinqconnect import DeviceType
-from thinqconnect.devices.const import Property as ThinQProperty
-from thinqconnect.integration import ActiveMode
+from .client import DeviceType
+from .client.devices.const import Property as ThinQProperty
+from .client.integration import ActiveMode
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -18,6 +18,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import ThinqConfigEntry
 from .entity import ThinQEntity
+from .monitoring import MonitoringBinarySensor, definitions, energy_definitions
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -146,6 +147,9 @@ async def async_setup_entry(
     """Set up an entry for binary sensor platform."""
     entities: list[ThinQBinarySensorEntity] = []
     for coordinator in entry.runtime_data.coordinators.values():
+        _, binaries = definitions(coordinator)
+        _, energy_binaries = energy_definitions(coordinator)
+        entities.extend(MonitoringBinarySensor(coordinator, item) for item in binaries + energy_binaries)
         if (
             descriptions := DEVICE_TYPE_BINARY_SENSOR_MAP.get(
                 coordinator.api.device.device_type

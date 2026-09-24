@@ -6,8 +6,8 @@ from typing import Any, override
 import uuid
 
 import probatio
-from thinqconnect import ThinQAPIErrorCodes, ThinQAPIException
-from thinqconnect.country import Country
+from .client import ThinQAPIErrorCodes, ThinQAPIException
+from .client.country import Country
 
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ACCESS_TOKEN, CONF_COUNTRY

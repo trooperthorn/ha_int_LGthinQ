@@ -1,3 +1,7 @@
+# Direct client migration status
+
+Version 0.2.0 implements the external SDK replacement. See [DIRECT_CLIENT.md](DIRECT_CLIENT.md) for scope, provenance, API contract findings and remaining live gates. Earlier phase notes below describe the development history; the former 1.0.13 pin is superseded.
+
 # Phased implementation plan
 
 Status: Phases 0–5 have implementation and documentation work in progress. The owner confirmed setup and reported that refrigerator and oven controls work. The owner also observed that START on the physical WM6998HBA began washing even with Dry selected on the dial. A fresh remote-enable GET now guards laundry START, but dry-only course selection remains unavailable in the observed API profile. Remaining hardware gates and release checks are listed below.

@@ -5,9 +5,9 @@ import logging
 from typing import Any, override
 
 from aiohttp import ClientError
-from thinqconnect import ThinQAPIException
-from thinqconnect.devices.const import Location
-from thinqconnect.integration import PropertyState
+from .client import ThinQAPIException
+from .client.devices.const import Location
+from .client.integration import PropertyState
 
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError

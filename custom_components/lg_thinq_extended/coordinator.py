@@ -5,8 +5,8 @@ from datetime import time
 import logging
 from typing import TYPE_CHECKING, Any, override
 
-from thinqconnect import ThinQAPIException
-from thinqconnect.integration import HABridge
+from .client import ThinQAPIException
+from .client.integration import HABridge
 
 from homeassistant.const import EVENT_CORE_CONFIG_UPDATE
 from homeassistant.core import Event, HomeAssistant, callback
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 from .const import DOMAIN, REVERSE_DEVICE_UNIT_TO_HA
 from .diagnostic_redaction import device_ref
+from .monitoring import Monitoring
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +56,8 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.unique_id = (
             f"{self.device_id}_{self.sub_id}" if self.sub_id else self.device_id
         )
+
+        self.monitoring = Monitoring(self)
 
         # Set your preferred temperature unit. This will allow us to retrieve
         # temperature values from the API in a converted value corresponding to
@@ -99,7 +102,9 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Request to the server to update the status from full response data."""
         try:
-            return await self.api.fetch_data()
+            data = await self.api.fetch_data()
+            self.monitoring.observe(data, "fetch")
+            return data
         except ThinQAPIException as e:
             raise UpdateFailed(e) from e
 
@@ -111,10 +116,12 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Handle the status received from the mqtt connection."""
         data = self.api.update_status(status)
         if data is not None:
+            self.monitoring.observe(data, "report")
             self.async_set_updated_data(data)
 
     def handle_notification_message(self, message: str | None) -> None:
         """Handle the status received from the mqtt connection."""
+        self.monitoring.notification(message)
         data = self.api.update_notification(message)
         if data is not None:
             self.async_set_updated_data(data)
@@ -125,6 +132,7 @@ async def async_setup_device_coordinator(
 ) -> DeviceDataUpdateCoordinator:
     """Create DeviceDataUpdateCoordinator and device_api per device."""
     coordinator = DeviceDataUpdateCoordinator(hass, config_entry, ha_bridge)
+    await coordinator.monitoring.load()
     await coordinator.async_refresh()
 
     _LOGGER.debug(

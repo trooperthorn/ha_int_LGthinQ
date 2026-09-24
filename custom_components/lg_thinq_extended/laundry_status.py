@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from typing import Any
 
-from thinqconnect.devices.const import Property as ThinQProperty
+from .client.devices.const import Property as ThinQProperty
 
 
 def laundry_operation_display(data: Mapping[str, Any], location: str | None) -> str | None:
@@ -34,5 +34,5 @@ def laundry_remote_ready(data: Mapping[str, Any], location: str | None) -> bool:
     if not location:
         return False
     property_state = data.get(f"{location}_{ThinQProperty.REMOTE_CONTROL_ENABLED}")
-    return getattr(property_state, "value", None) is True
+    return getattr(property_state, "is_on", False) is True or getattr(property_state, "value", None) is True
 

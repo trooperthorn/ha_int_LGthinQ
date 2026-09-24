@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 import logging
 import random
+
+from aiohttp import ClientError
 from typing import override
 
-from thinqconnect import USAGE_DAILY, USAGE_MONTHLY, DeviceType, ThinQAPIException
-from thinqconnect.devices.const import Property as ThinQProperty
-from thinqconnect.integration import ActiveMode, ThinQPropertyEx, TimerProperty
+from .client import USAGE_DAILY, USAGE_MONTHLY, DeviceType, ThinQAPIException
+from .client.devices.const import Property as ThinQProperty
+from .client.integration import ActiveMode, ThinQPropertyEx, TimerProperty
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -33,6 +35,7 @@ from . import ThinqConfigEntry
 from .coordinator import DeviceDataUpdateCoordinator
 from .entity import ThinQEntity
 from .event import DEVICE_TYPE_EVENT_MAP
+from .monitoring import MonitoringSensor, definitions, energy_definitions
 
 EVENT_STATUS_DESC = {
     ThinQPropertyEx.ERROR: SensorEntityDescription(
@@ -687,6 +690,9 @@ async def async_setup_entry(
         | ThinQEventStatusSensor
     ] = []
     for coordinator in entry.runtime_data.coordinators.values():
+        sensors, _ = definitions(coordinator)
+        energy_sensors, _ = energy_definitions(coordinator)
+        entities.extend(MonitoringSensor(coordinator, item) for item in sensors + energy_sensors)
         for event_description in DEVICE_TYPE_EVENT_MAP.get(
             coordinator.api.device.device_type, ()
         ):
@@ -908,7 +914,16 @@ class ThinQEnergySensorEntity(ThinQEntity, SensorEntity):
     @override
     def available(self) -> bool:
         """Return True if entity is available."""
-        return super().available or self.native_value is not None
+        status = self.coordinator.monitoring.energy.get(self.energy_key, {})
+        return not status.get("error") and (super().available or self.native_value is not None)
+
+    @property
+    def energy_key(self):
+        return self.property_id + "_" + self.entity_description.key
+
+    @property
+    def extra_state_attributes(self):
+        return dict(self.coordinator.monitoring.energy.get(self.energy_key, {}))
 
     @override
     async def async_update(self, now: datetime | None = None) -> None:
@@ -942,6 +957,9 @@ class ThinQEnergySensorEntity(ThinQEntity, SensorEntity):
                 end_date=end_date,
                 detail=False,
             )
+            if self._attr_native_value is None:
+                raise ValueError("No energy data returned")
+            self.coordinator.monitoring.energy_result(self.energy_key, value=self._attr_native_value)
             if (
                 self.entity_description.reset_at_midnight
                 and start_date != self._last_fetch_date
@@ -950,7 +968,10 @@ class ThinQEnergySensorEntity(ThinQEntity, SensorEntity):
                     start_date, time.min, local_now.tzinfo
                 )
                 self._last_fetch_date = start_date
-        except ThinQAPIException as exc:
+        except (ThinQAPIException, ClientError, TimeoutError, ValueError) as exc:
+            self.coordinator.monitoring.energy_result(
+                self.energy_key, error=str(getattr(exc, "code", type(exc).__name__))
+            )
             _LOGGER.warning(
                 "[%s:%s] Failed to fetch energy usage data. reason=%s",
                 self.coordinator.device_name,

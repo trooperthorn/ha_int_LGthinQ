@@ -3,8 +3,8 @@
 import logging
 from typing import Any, override
 
-from thinqconnect import DeviceType
-from thinqconnect.integration import ExtendedProperty
+from .client import DeviceType
+from .client.integration import ExtendedProperty
 
 from homeassistant.components.water_heater import (
     ATTR_OPERATION_MODE,
