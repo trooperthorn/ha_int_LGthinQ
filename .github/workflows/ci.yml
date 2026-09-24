@@ -52,3 +52,6 @@ jobs:
           for path in Path('custom_components/lg_thinq_extended').glob('*.py'):
               importlib.import_module('custom_components.lg_thinq_extended.' + path.stem)
           PY
+
+      - name: Validate monitoring entities and energy failures against Home Assistant
+        run: python tests/ha_monitoring_check.py

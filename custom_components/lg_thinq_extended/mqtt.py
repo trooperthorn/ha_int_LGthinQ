@@ -47,11 +47,29 @@ class ThinQMQTT:
         self._last_inventory_check = 0.0
         self.client: ThinQMQTTClient | None = None
 
+    def _connection_changed(self, connected):
+        """Called on HA's event loop by the MQTT transport."""
+        from homeassistant.util import dt as dt_util
+        for coordinator in self.coordinators.values():
+            monitor = coordinator.monitoring
+            previous = monitor.mqtt_connected
+            monitor.mqtt_connected = connected
+            if connected:
+                if monitor.ever_connected and not previous:
+                    monitor.reconnects += 1
+                monitor.ever_connected = True
+            else:
+                monitor.last_disconnect = dt_util.now()
+                monitor.history.gap()
+            monitor.save_later()
+            monitor.notify()
+
     async def async_connect(self) -> bool:
         """Create a mqtt client and then try to connect."""
 
         self.client = await ThinQMQTTClient(
-            self.thinq_api, self.client_id, self.on_message_received
+            self.thinq_api, self.client_id, self.on_message_received,
+            on_connection_changed=self._connection_changed
         )
         if self.client is None:
             return False

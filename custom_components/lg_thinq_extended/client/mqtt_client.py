@@ -57,6 +57,7 @@ class ThinQMQTTClient:
         self._closing = False
         self._expires = None
         self._topics = []
+        self._connection_callback = kwargs.get("on_connection_changed")
 
     def __await__(self):
         async def ready():
@@ -97,6 +98,8 @@ class ThinQMQTTClient:
         if reason_code.is_failure or self._closing:
             return
         self._connected = True
+        if self._connection_callback:
+            self._loop.call_soon_threadsafe(self._connection_callback, True)
         # Subscribe on every connection, including a recovered session.
         client.subscribe([(topic, 1) for topic in self._topics])
 
@@ -106,6 +109,8 @@ class ThinQMQTTClient:
 
     def _on_disconnect(self, client, userdata, flags, reason_code, properties):
         self._connected = False
+        if self._connection_callback:
+            self._loop.call_soon_threadsafe(self._connection_callback, False)
         self._loop.call_soon_threadsafe(self._ready.clear)
 
     def _on_message(self, client, userdata, message):

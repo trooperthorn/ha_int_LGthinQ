@@ -80,6 +80,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ThinqConfigEntry) -> boo
         await entry.runtime_data.mqtt_client.async_disconnect()
         raise
 
+    for coordinator in entry.runtime_data.coordinators.values():
+        coordinator.monitoring.start()
+
     # Clean up devices they are no longer in use.
     async_cleanup_device_registry(hass, entry)
 
@@ -190,5 +193,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ThinqConfigEntry) -> bo
     if entry.runtime_data.mqtt_client:
         await entry.runtime_data.mqtt_client.async_disconnect()
 
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        for coordinator in entry.runtime_data.coordinators.values():
+            await coordinator.monitoring.close()
+    return unloaded
 
