@@ -51,6 +51,7 @@ from ... import (
     WaterPurifierDevice,
     WineCellarDevice,
 )
+from ...energy import energy_total
 from ...devices.const import Location
 
 from .property import ActiveMode, PropertyHolder, PropertyOption
@@ -947,16 +948,13 @@ class HABridge:
             start,
             end,
         )
-        if data is None or "result" not in data:
+        if data is None:
             raise ThinQAPIException("0001", not_supported_error, {})
 
-        datalist = data["result"]["dataList"]
+        value = energy_total(data, energy_property)
         if not detail:
-            value: float = 0.0
-            for data in datalist:
-                value += data.get(energy_property, 0)
             return value
-        return datalist
+        return data["result"]["dataList"]
 
 
 async def async_get_ha_bridge_list(
