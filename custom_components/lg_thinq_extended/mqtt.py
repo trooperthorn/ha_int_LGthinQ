@@ -18,9 +18,10 @@ from .client import (
 
 from homeassistant.core import Event, HomeAssistant
 
-from .const import DEVICE_PUSH_MESSAGE, DEVICE_STATUS_MESSAGE
+from .const import DEVICE_PUSH_MESSAGE, DEVICE_STATUS_MESSAGE, DOMAIN
+from homeassistant.util import dt as dt_util
 from .coordinator import DeviceDataUpdateCoordinator
-from .device_inventory import device_inventory_changed
+from .device_inventory import device_inventory_changed, parse_device_inventory
 from .diagnostic_redaction import device_ref, redact_api_data
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,7 +45,12 @@ class ThinQMQTT:
         self.coordinators = coordinators
         self.entry_id = entry_id
         self._inventory_check_pending = False
+        self._closing = False
         self._last_inventory_check = 0.0
+        self._inventory_task = None
+        self._known_inventory = getattr(thinq_api, "inventory", None)
+        self.subscription_status = "not_checked"
+        self.subscription_checked = None
         self.client: ThinQMQTTClient | None = None
 
     def _connection_changed(self, connected):
@@ -80,6 +86,10 @@ class ThinQMQTT:
 
     async def async_disconnect(self, event: Event | None = None) -> None:
         """Unregister client and disconnects handlers."""
+        self._closing = True
+        if self._inventory_task is not None:
+            self._inventory_task.cancel()
+            self._inventory_task = None
         await self.async_end_subscribes()
 
         if self.client is not None:
@@ -90,7 +100,7 @@ class ThinQMQTT:
                 _LOGGER.exception("Failed to disconnect")
 
     def _get_failed_device_count(
-        self, results: list[dict | BaseException | None]
+        self, results: list[dict | BaseException | None], *, ending: bool = False
     ) -> int:
         """Check if there exists errors while performing tasks and then return count."""
         # Note that result code '1207' means 'Already subscribed push'
@@ -99,7 +109,8 @@ class ThinQMQTT:
             isinstance(result, BaseException)
             and not (
                 isinstance(result, ThinQAPIException)
-                and result.code == ThinQAPIErrorCodes.ALREADY_SUBSCRIBED_PUSH
+                and (result.code == ThinQAPIErrorCodes.ALREADY_SUBSCRIBED_PUSH
+                     or (ending and result.code in {"1204", "1205", "1206", "1211", "1212", "1213", "1217"}))
             )
             for result in results
         )
@@ -121,6 +132,8 @@ class ThinQMQTT:
         ]
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
+            self.subscription_status = "subscription_request_failed" if self._get_failed_device_count(results) else "subscribed"
+            self.subscription_checked = dt_util.now()
             if (count := self._get_failed_device_count(results)) > 0:
                 _LOGGER.error("Failed to refresh subscription on %s devices", count)
 
@@ -147,6 +160,8 @@ class ThinQMQTT:
         tasks.append(self.hass.async_create_task(self.thinq_api.async_post_push_devices_subscribe()))
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
+            self.subscription_status = "subscription_request_failed" if self._get_failed_device_count(results) else "subscribed"
+            self.subscription_checked = dt_util.now()
             if (count := self._get_failed_device_count(results)) > 0:
                 _LOGGER.error("Failed to start subscription on %s devices", count)
 
@@ -171,7 +186,7 @@ class ThinQMQTT:
         tasks.append(self.hass.async_create_task(self.thinq_api.async_delete_push_devices_subscribe()))
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            if (count := self._get_failed_device_count(results)) > 0:
+            if (count := self._get_failed_device_count(results, ending=True)) > 0:
                 _LOGGER.error("Failed to end subscription on %s devices", count)
 
     def on_message_received(
@@ -201,10 +216,8 @@ class ThinQMQTT:
         """Handle received mqtt message."""
         push_type = message.get("pushType")
         if push_type not in (DEVICE_STATUS_MESSAGE, DEVICE_PUSH_MESSAGE):
-            if not self._inventory_check_pending and monotonic() - self._last_inventory_check >= 60:
-                self._inventory_check_pending = True
-                self._last_inventory_check = monotonic()
-                self.hass.async_create_task(self._async_check_device_inventory())
+            if push_type in {"DEVICE_REGISTERED", "DEVICE_UNREGISTERED", "DEVICE_ALIAS_CHANGED"}:
+                self._schedule_inventory_check()
             return
         if not isinstance(message.get("deviceId"), str):
             _LOGGER.warning("Ignoring malformed LG device message")
@@ -223,7 +236,8 @@ class ThinQMQTT:
         )
         coordinator = self.coordinators.get(unique_id)
         if coordinator is None:
-            _LOGGER.error("Failed to handle device event: No device")
+            _LOGGER.debug("Ignoring event for an unloaded LG device; checking inventory")
+            self._schedule_inventory_check()
             return
 
         _LOGGER.debug(
@@ -236,18 +250,63 @@ class ThinQMQTT:
         elif push_type == DEVICE_PUSH_MESSAGE:
             coordinator.handle_notification_message(message.get("pushCode"))
 
+    def _schedule_inventory_check(self) -> None:
+        """Coalesce bursts without dropping the final inventory change."""
+        if self._closing:
+            return
+        self._inventory_check_pending = True
+        if self._inventory_task is None:
+            self._inventory_task = self.hass.async_create_task(self._async_check_device_inventory())
+
     async def _async_check_device_inventory(self) -> None:
-        """Reload once when LG announces a changed registered-device list."""
+        """Refresh authoritative inventory after LG app additions/removals."""
         try:
-            registered = await self.thinq_api.async_get_device_list()
-            loaded = {
-                coordinator.device_id: coordinator.api.device.alias
-                for coordinator in self.coordinators.values()
-            }
-            if device_inventory_changed(registered, loaded):
-                await self.hass.config_entries.async_reload(self.entry_id)
-        except (ThinQAPIException, ClientError, TimeoutError):
+            while self._inventory_check_pending:
+                await asyncio.sleep(max(2, 60 - (monotonic() - self._last_inventory_check)))
+                self._inventory_check_pending = False
+                self._last_inventory_check = monotonic()
+                registered = await self.thinq_api.async_get_device_list()
+                loaded = self._known_inventory
+                if loaded is None:
+                    loaded = {c.device_id: c.api.device.alias for c in self.coordinators.values()}
+                if device_inventory_changed(registered, loaded):
+                    current = parse_device_inventory(registered)
+                    self._known_inventory = current
+                    self.hass.bus.async_fire(DOMAIN + "_inventory_changed", {
+                        "config_entry_id": self.entry_id,
+                        "added": sorted(set(current)-set(loaded)),
+                        "removed": sorted(set(loaded)-set(current)),
+                        "renamed": sorted(k for k in current.keys() & loaded.keys() if current[k] != loaded[k]),
+                        "managed_in": "LG ThinQ app"})
+                    _LOGGER.info("LG app device inventory changed; refreshing integration")
+                    # Unload must not cancel the task that requested its own reload.
+                    self._inventory_task = None
+                    await self.hass.config_entries.async_reload(self.entry_id)
+                    return
+        except (ThinQAPIException, ClientError, TimeoutError, ValueError):
             _LOGGER.warning("Could not refresh LG device inventory after notification")
         finally:
-            self._inventory_check_pending = False
+            self._inventory_task = None
 
+    async def async_check_subscription_health(self):
+        """Explicit audit; do not label a removed LG device as a broken appliance."""
+        self.subscription_checked = dt_util.now()
+        try:
+            inventory = await self.thinq_api.async_get_device_list()
+            current = parse_device_inventory(inventory)
+            if current is None:
+                raise ValueError("Invalid inventory")
+            pushes = await self.thinq_api.async_get_push_list()
+            events = await self.thinq_api.async_get_event_list()
+            def ids(response):
+                if not isinstance(response, list) or any(not isinstance(x, dict) or not isinstance(x.get("deviceId"), str) for x in response):
+                    raise ValueError("Invalid subscription list")
+                return {x["deviceId"] for x in response}
+            expected = {c.device_id for c in self.coordinators.values()} & current.keys()
+            self.subscription_status = "OK" if expected <= ids(pushes) and expected <= ids(events) else "missing_subscription"
+            if self._known_inventory is not None and current != self._known_inventory:
+                self._schedule_inventory_check()
+        except (ThinQAPIException, ClientError, TimeoutError, ValueError) as exc:
+            self.subscription_status = "check_failed:" + str(getattr(exc, "code", type(exc).__name__))
+        for c in self.coordinators.values():
+            c.monitoring.notify()

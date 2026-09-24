@@ -1,0 +1,129 @@
+get_device_data:
+  name: Get device data
+  description: Return cached state, capabilities, command results and energy history.
+    Refresh optionally performs a state GET.
+  fields:
+    device_id:
+      name: LG device
+      required: true
+      selector:
+        device:
+          integration: lg_thinq_extended
+    refresh:
+      name: Refresh state
+      selector:
+        boolean: {}
+      default: false
+refresh_capabilities:
+  name: Refresh capabilities
+  description: Read the LG profile and reload the integration only if its capabilities
+    changed.
+  fields:
+    device_id:
+      name: LG device
+      required: true
+      selector:
+        device:
+          integration: lg_thinq_extended
+configure_monitoring:
+  name: Configure monitoring
+  description: Configure optional daily history requests, flat tariff and a user-defined
+    observed-cycle maintenance interval.
+  fields:
+    device_id:
+      name: LG device
+      required: true
+      selector:
+        device:
+          integration: lg_thinq_extended
+    history_enabled:
+      name: Enable daily energy history
+      selector:
+        boolean: {}
+    tariff_per_kwh:
+      name: Flat tariff per kWh in HA currency
+      selector:
+        number:
+          min: 0
+          max: 1000
+          step: 0.001
+          mode: box
+    maintenance_interval:
+      name: Observed cycles between maintenance (0 disables)
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 1
+          mode: box
+reset_maintenance:
+  name: Reset maintenance reminder
+  description: Record maintenance performed and reset the locally observed cycle baseline.
+  fields:
+    device_id:
+      name: LG device
+      required: true
+      selector:
+        device:
+          integration: lg_thinq_extended
+refresh_energy_history:
+  name: Refresh energy history
+  description: Fetch up to 30 completed days and 12 months for each advertised energy
+    property.
+  fields:
+    device_id:
+      name: LG device
+      required: true
+      selector:
+        device:
+          integration: lg_thinq_extended
+refresh_subscription_health:
+  name: Check cloud subscriptions
+  description: Audit subscriptions against current LG inventory. Does not register
+    or remove an appliance.
+  fields:
+    device_id:
+      name: LG device
+      required: true
+      selector:
+        device:
+          integration: lg_thinq_extended
+start_laundry_mode:
+  name: Start laundry in selected mode
+  description: STARTS a cycle. Requires the requested writable mode and remote start
+    enabled at the appliance.
+  fields:
+    device_id:
+      name: LG device
+      required: true
+      selector:
+        device:
+          integration: lg_thinq_extended
+    mode:
+      name: Mode
+      required: true
+      selector:
+        select:
+          options:
+          - WASHING
+          - DRYING
+          - WASHING_DRYING
+    location:
+      name: Location
+      default: MAIN
+      selector:
+        select:
+          options:
+          - MAIN
+          - MINI
+refresh_devices:
+  name: Refresh devices
+  description: Reconcile additions, removals and renames performed in the LG ThinQ
+    app. Works when no appliances are loaded.
+  fields:
+    config_entry_id:
+      name: LG configuration entry
+      required: true
+      selector:
+        config_entry:
+          integration: lg_thinq_extended

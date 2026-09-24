@@ -134,6 +134,7 @@ class Observations:
                 if value == "end" and prefix in self.cycles:
                     cycle = self.cycles.pop(prefix)
                     self.add(day, prefix+"completed_cycles", 1)
+                    self.values[prefix+"_maintenance_observed"] = self.values.get(prefix+"_maintenance_observed", 0) + 1
                     self.values[prefix+"last_cycle_complete"] = now.isoformat()
                     if cycle["start"]:
                         self.values[prefix+"last_cycle_seconds"] = (now-cycle["start"]).total_seconds()

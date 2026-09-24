@@ -31,3 +31,7 @@ The source is under `custom_components/lg_thinq_extended`. The copied upstream c
 
 For a supervised appliance command trial, use the [live control POST checklist](CONTROL_TEST.md). Installation and diagnostics do not send control POSTs.
 
+
+## Home Assistant insights and scripting (0.3.0)
+
+See [Automation and insights](AUTOMATION_AND_INSIGHTS.md) for historical energy, maintenance, command outcomes, inventory lifecycle, conditional MAC/UniFi linking, and all response actions. Optional [HA package examples](examples/lg_insights_package.yaml) include device-selector scripts and passive notifications. Device onboarding/removal remains in LG ThinQ.

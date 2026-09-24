@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 from .const import DOMAIN, REVERSE_DEVICE_UNIT_TO_HA
 from .diagnostic_redaction import device_ref
 from .monitoring import Monitoring
+from .insights import Insights
+from .insight_helpers import merge_report
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +60,7 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
         self.monitoring = Monitoring(self)
+        self.insights = Insights(self)
 
         # Set your preferred temperature unit. This will allow us to retrieve
         # temperature values from the API in a converted value corresponding to
@@ -104,6 +107,7 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             data = await self.api.fetch_data()
             self.monitoring.observe(data, "fetch")
+            self.insights.observe(getattr(self.api.device.thinq_api, "states", {}).get(self.device_id))
             return data
         except ThinQAPIException as e:
             raise UpdateFailed(e) from e
@@ -114,6 +118,10 @@ class DeviceDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def handle_update_status(self, status: dict[str, Any]) -> None:
         """Handle the status received from the mqtt connection."""
+        cache = getattr(self.api.device.thinq_api, "states", None)
+        if isinstance(cache, dict):
+            cache[self.device_id] = merge_report(cache.get(self.device_id), status)
+        self.insights.observe(status)
         data = self.api.update_status(status)
         if data is not None:
             self.monitoring.observe(data, "report")

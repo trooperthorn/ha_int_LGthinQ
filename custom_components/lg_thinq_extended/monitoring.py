@@ -34,6 +34,7 @@ class Monitoring:
     async def load(self):
         saved = await self.store.async_load() or {}
         self.history = Observations(saved.get("history"))
+        self.coordinator.insights.load(saved.get("insights", {}))
         self.energy = saved.get("energy", {})
         # Preserve timestamps without claiming a successful fetch in this session.
         for value in self.energy.values():
@@ -46,7 +47,7 @@ class Monitoring:
             self.history.values["profile_changed"] = dt_util.now().isoformat()
 
     def snapshot(self):
-        return {"history": self.history.saved, "energy": self.energy}
+        return {"history": self.history.saved, "energy": self.energy, "insights": self.coordinator.insights.snapshot()}
 
     def save_later(self):
         self.store.async_delay_save(self.snapshot, 10)
@@ -85,11 +86,13 @@ class Monitoring:
         self.stop = async_track_time_interval(self.coordinator.hass, self.tick, timedelta(seconds=30))
 
     def tick(self, now):
+        self.coordinator.insights.tick(dt_util.as_local(now))
         self.history.advance(dt_util.as_local(now))
         self.notify()
         self.save_later()
 
     async def close(self):
+        await self.coordinator.insights.close()
         if self.stop:
             self.stop()
             self.stop = None
@@ -216,7 +219,9 @@ def definitions(coordinator):
                 return value
             sensors.append(Metric(key+"_reported", "Reported "+key.replace("_", " "), metadata,
                                   diagnostic=not key.endswith("cook_mode")))
-    return sensors, binaries
+    from .insights import extra_definitions
+    extra_sensors, extra_binaries = extra_definitions(coordinator)
+    return sensors + extra_sensors, binaries + extra_binaries
 
 
 class MonitoringEntity(CoordinatorEntity):
@@ -241,7 +246,14 @@ class MonitoringEntity(CoordinatorEntity):
 
     @property
     def extra_state_attributes(self):
-        return {"source": "LG reports and local observations", "coverage": "observed intervals only"}
+        attrs = {"source": "LG reports and local observations", "coverage": "observed intervals only"}
+        if self.metric.key.endswith("_history_status"):
+            prop = self.metric.key.removesuffix("_history_status")
+            attrs.update(self.coordinator.insights.history.get(prop, {}))
+            attrs["unit"] = "Wh"
+        if self.metric.key == "command_status":
+            attrs.update(self.coordinator.insights.command)
+        return attrs
 
 
 class MonitoringSensor(MonitoringEntity, SensorEntity):
@@ -252,7 +264,7 @@ class MonitoringSensor(MonitoringEntity, SensorEntity):
             self._attr_device_class = SensorDeviceClass(metric.kind)
         if metric.name.endswith("today") and not metric.diagnostic:
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
-        elif metric.unit and metric.kind != "timestamp":
+        elif metric.unit and metric.kind not in {"timestamp", "energy"}:
             self._attr_state_class = SensorStateClass.MEASUREMENT
             self._attr_suggested_display_precision = 1
 

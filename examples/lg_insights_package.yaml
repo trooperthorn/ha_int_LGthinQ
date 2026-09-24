@@ -1,0 +1,98 @@
+# Optional HA package. Device IDs are selected when running each script.
+script:
+  lg_appliance_snapshot:
+    alias: LG appliance snapshot
+    mode: single
+    fields:
+      appliance:
+        name: Appliance
+        required: true
+        selector:
+          device:
+            integration: lg_thinq_extended
+    sequence:
+      - action: lg_thinq_extended.get_device_data
+        data:
+          device_id: "{{ appliance }}"
+          refresh: true
+        response_variable: snapshot
+      - stop: Snapshot retrieved
+        response_variable: snapshot
+
+  lg_enable_history_and_reminders:
+    alias: LG enable daily history and maintenance reminders
+    mode: single
+    fields:
+      appliance:
+        required: true
+        selector:
+          device:
+            integration: lg_thinq_extended
+      interval:
+        name: Observed cycles between maintenance
+        default: 30
+        selector:
+          number:
+            min: 1
+            max: 1000
+            mode: box
+    sequence:
+      - action: lg_thinq_extended.configure_monitoring
+        data:
+          device_id: "{{ appliance }}"
+          history_enabled: true
+          maintenance_interval: "{{ interval | int }}"
+      - action: lg_thinq_extended.refresh_energy_history
+        data:
+          device_id: "{{ appliance }}"
+
+  lg_start_dry_only:
+    alias: LG START dry-only cycle (requires advertised support)
+    mode: single
+    fields:
+      appliance:
+        required: true
+        selector:
+          device:
+            integration: lg_thinq_extended
+    sequence:
+      - action: lg_thinq_extended.start_laundry_mode
+        data:
+          device_id: "{{ appliance }}"
+          mode: DRYING
+          location: MAIN
+        response_variable: result
+      - stop: LG accepted the request; monitor appliance state
+        response_variable: result
+
+automation:
+  - id: lg_inventory_information
+    alias: LG app inventory change information
+    triggers:
+      - trigger: event
+        event_type: lg_thinq_extended_inventory_changed
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: LG ThinQ device list updated
+          message: >-
+            LG app changes: {{ trigger.event.data.added | count }} added,
+            {{ trigger.event.data.removed | count }} removed,
+            {{ trigger.event.data.renamed | count }} renamed.
+            Home Assistant is refreshing the integration.
+
+  - id: lg_command_failure_information
+    alias: LG command rejected or failed
+    triggers:
+      - trigger: event
+        event_type: lg_thinq_extended_command_result
+        event_data:
+          status: failed
+    actions:
+      - action: persistent_notification.create
+        data:
+          title: LG command did not succeed
+          message: >-
+            Device {{ trigger.event.data.device_ref }} returned
+            {{ trigger.event.data.error }}. Check its remote-ready state.
+            The command was not automatically retried.

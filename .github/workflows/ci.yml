@@ -55,3 +55,6 @@ jobs:
 
       - name: Validate monitoring entities and energy failures against Home Assistant
         run: python tests/ha_monitoring_check.py
+
+      - name: Validate HA actions and inventory lifecycle
+        run: python tests/ha_insights_check.py

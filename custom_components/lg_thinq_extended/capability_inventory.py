@@ -84,6 +84,7 @@ def summarize_capabilities(
         energy_status = "available" if property_names else "not_advertised"
     return {
         "properties": sorted(_property_specs(profile.get("property"), "property"), key=lambda p: p["path"]),
+        "extension_properties": sorted(_property_specs(profile.get("extensionProperty"), "extensionProperty"), key=lambda p: p["path"]),
         "observed_state_paths": sorted(_state_paths(state)),
         "notifications": sorted(str(code) for code in push_codes),
         "energy_status": energy_status,
