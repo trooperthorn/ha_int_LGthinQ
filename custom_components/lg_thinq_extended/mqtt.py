@@ -208,12 +208,18 @@ class ThinQMQTT:
             _LOGGER.warning("Ignoring malformed LG device message")
             return
 
-        asyncio.run_coroutine_threadsafe(
-            self.async_handle_device_event(message), self.hass.loop
-        ).result()
+        # Do not block Paho's network thread while HA might be unloading MQTT.
+        self.hass.loop.call_soon_threadsafe(self._schedule_device_event, message)
+
+    def _schedule_device_event(self, message):
+        if not self._closing:
+            self.hass.async_create_task(self.async_handle_device_event(message))
 
     async def async_handle_device_event(self, message: dict) -> None:
         """Handle received mqtt message."""
+        # The official event schema also permits an event envelope.
+        if "pushType" not in message and isinstance(message.get("event"), dict):
+            message = message["event"]
         push_type = message.get("pushType")
         if push_type not in (DEVICE_STATUS_MESSAGE, DEVICE_PUSH_MESSAGE):
             if push_type in {"DEVICE_REGISTERED", "DEVICE_UNREGISTERED", "DEVICE_ALIAS_CHANGED"}:
@@ -223,32 +229,29 @@ class ThinQMQTT:
             _LOGGER.warning("Ignoring malformed LG device message")
             return
         report = message.get("report")
-        if push_type == DEVICE_STATUS_MESSAGE and not isinstance(report, dict):
-            _LOGGER.warning("Ignoring malformed LG status message")
+        if push_type == DEVICE_STATUS_MESSAGE and not (
+            isinstance(report, dict) or
+            (isinstance(report, list) and report and all(isinstance(item, dict) for item in report))
+        ):
+            _LOGGER.warning("Ignoring unsupported LG status report shape: %s", type(report).__name__)
             return
-        if message.get("deviceType") == DeviceType.WASHTOWER and not report:
-            _LOGGER.warning("Ignoring LG WashTower message without a location")
+        if push_type == DEVICE_STATUS_MESSAGE and message.get("deviceType") == DeviceType.WASHTOWER and not isinstance(report, dict):
+            _LOGGER.warning("Ignoring LG WashTower status without component mapping")
             return
-        unique_id = (
-            f"{message['deviceId']}_{next(iter(report))}"
-            if message.get("deviceType") == DeviceType.WASHTOWER
-            else message["deviceId"]
-        )
-        coordinator = self.coordinators.get(unique_id)
-        if coordinator is None:
+        coordinators = [c for c in self.coordinators.values() if c.device_id == message["deviceId"]]
+        if not coordinators:
             _LOGGER.debug("Ignoring event for an unloaded LG device; checking inventory")
             self._schedule_inventory_check()
             return
-
-        _LOGGER.debug(
-            "async_handle_device_event: device=%s, message=%s",
-            device_ref(coordinator.device_id),
-            redact_api_data(message),
-        )
-        if push_type == DEVICE_STATUS_MESSAGE:
-            coordinator.handle_update_status(message.get("report", {}))
-        elif push_type == DEVICE_PUSH_MESSAGE:
-            coordinator.handle_notification_message(message.get("pushCode"))
+        for coordinator in coordinators:
+            _LOGGER.debug("async_handle_device_event: device=%s, message=%s",
+                device_ref(coordinator.device_id), redact_api_data(message))
+            if push_type == DEVICE_STATUS_MESSAGE:
+                # LG laundry/oven status is location-tagged list data, also used
+                # by GET state. The device mapper already understands this shape.
+                coordinator.handle_update_status(report)
+            else:
+                coordinator.handle_notification_message(message.get("pushCode"))
 
     def _schedule_inventory_check(self) -> None:
         """Coalesce bursts without dropping the final inventory change."""

@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 from datetime import timedelta
 
+from homeassistant.core import callback
 from homeassistant.components.sensor import SensorEntity, SensorDeviceClass, SensorStateClass
 from homeassistant.components.binary_sensor import BinarySensorEntity, BinarySensorDeviceClass
 from homeassistant.helpers.entity import EntityCategory
@@ -85,6 +86,7 @@ class Monitoring:
     def start(self):
         self.stop = async_track_time_interval(self.coordinator.hass, self.tick, timedelta(seconds=30))
 
+    @callback
     def tick(self, now):
         self.coordinator.insights.tick(dt_util.as_local(now))
         self.history.advance(dt_util.as_local(now))
