@@ -1,5 +1,6 @@
 {
   "name": "LG ThinQ Extended",
-  "render_readme": true
+  "render_readme": true,
+  "homeassistant": "2026.11.0"
 }
 
